@@ -1,0 +1,7 @@
+local StarterGui = game:GetService("StarterGui")
+
+StarterGui:SetCore("SendNotification", {
+    Title = "Thông báo";
+    Text = "Đây là một thông báo trong Roblox!";
+    Duration = 5; -- Thời gian hiển thị (giây)
+})
