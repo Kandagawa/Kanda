@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "Kanda APK Editor",
+      "version": "1.0",
+      "url": "https://yourdomain.com/files/kanda.apk",
+      "description": "Ứng dụng chỉnh sửa package name và ký lại APK."
+    }
+  ]
+}
