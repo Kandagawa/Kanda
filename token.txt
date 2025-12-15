@@ -2,7 +2,7 @@
   "scrapingdog": [
   "693f7898b0b3d6f7efbaf97d",
   "693f7943f268832f8e51d0b6",
-  "693f796bdbb5697175c82d9b",
+  "m693f796bdbb5697175c82d9b",
   "693f79d9a0cc33728e31be1d",
   "693f7a0f70357d8de8021cc2",
   "693f7a46e0963325fc2ef127",
@@ -12,6 +12,6 @@
   "693ee910626b3f2f0ac94d67"
   ],
   "proxy_url": [
-    "https://free-proxy-list.net/en/anonymous-proxy.html"
+    "https://free-proxy-list.net/en/"
   ]
 }
