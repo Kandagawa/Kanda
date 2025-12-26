@@ -5,7 +5,7 @@
 // @description  Script hỗ trợ đa năng - Chạy trên mọi trang web
 // @author       Kanda
 // @match        *://*/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=github.com
+// @icon         Https://lottiefiles.com/free-animation/sandy-loading-o4VygOMtb8
 // @grant        none
 // @downloadURL  https://raw.githubusercontent.com/Kandagawa/Kanda/main/support.user.js
 // @updateURL    https://raw.githubusercontent.com/Kandagawa/Kanda/main/support.user.js
