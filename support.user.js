@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kanda Support Script
 // @namespace    https://github.com/Kandagawa/
-// @version      1.0.6
+// @version      1.0.7
 // @description  Bảng điều khiển tìm kiếm link đa năng cho Mobile & PC
 // @author       Kanda
 // @match        *://*/*
