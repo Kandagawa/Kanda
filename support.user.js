@@ -113,3 +113,4 @@
         if (e.altKey && e.key.toLowerCase() === 's') toggle.click();
     });
 
+})();
