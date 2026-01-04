@@ -1,10 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <meta http-equiv="refresh" content="0; url=https://b3b7006e-1ecc-4067-be4f-1ee2529d8d76-00-3shhng3psvqge.picard.replit.dev/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đang chuyển hướng...</title>
+    <style>
+        /* Thiết kế tối giản, hiện đại */
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .loader-container {
+            text-align: center;
+        }
+
+        /* Hiệu ứng vòng xoay vô tận */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+
+        p { font-size: 14px; opacity: 0.8; letter-spacing: 0.5px; }
+    </style>
 </head>
-<body style="background: #000; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh;">
-    <p>Đang kết nối đến máy chủ...</p>
+<body>
+
+    <div class="loader-container">
+        <div class="spinner"></div>
+        <p>Đang kết nối đến máy chủ...</p>
+    </div>
+
+    <script>
+        // ==========================================
+        // CẤU HÌNH LINK TẠI ĐÂY
+        // ==========================================
+        const REDIRECT_URL = "https://dd4449df-2a40-4a6a-b225-f6b8d7760c4f-00-39o5s79ccgg0s.worf.replit.dev/";
+        
+        // Thực hiện chuyển hướng ngay lập tức
+        window.location.replace(REDIRECT_URL);
+    </script>
+
 </body>
 </html>
