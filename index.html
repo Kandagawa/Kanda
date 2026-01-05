@@ -3,67 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Terminal Redirect</title>
+    <title>Loading...</title>
     <style>
-        :root {
-            --color: #00ff66; /* Màu xanh neon hiện đại */
-            --bg: #0d1117;    /* Màu nền tối của GitHub */
-        }
-
         body {
-            background-color: var(--bg);
-            color: var(--color);
-            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            background-color: #0e1117; /* Màu nền tối của GitHub */
+            color: #c9d1d9; /* Màu chữ xám trắng nhẹ */
+            font-family: 'SFMono-Regular', Consolas, monospace;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden;
         }
 
-        .terminal-container {
-            width: 100%;
-            max-width: 700px;
-            padding: 20px;
-            box-sizing: border-box;
+        .terminal-loader {
+            width: 300px;
         }
 
-        .command-line {
-            display: block;
+        .status-text {
+            font-size: 14px;
             margin-bottom: 10px;
-            white-space: nowrap;
-            overflow: hidden;
-            border-right: 3px solid transparent;
-            width: 0;
+            display: block;
         }
 
-        /* Hiệu ứng gõ lệnh */
-        .anim-typewriter {
-            animation: typewriter 1s steps(40) forwards;
+        /* Thanh tiến trình bằng ký tự */
+        .progress-bar {
+            letter-spacing: 2px;
+            font-size: 12px;
+            color: #58a6ff; /* Màu xanh đặc trưng */
         }
-
-        @keyframes typewriter {
-            from { width: 0; }
-            to { width: 100%; }
-        }
-
-        /* Delay cho từng dòng để tạo cảm giác máy đang xử lý */
-        .d1 { animation-delay: 0.1s; }
-        .d2 { animation-delay: 1.0s; }
-        .d3 { animation-delay: 2.0s; }
-        .d4 { animation-delay: 3.0s; }
-
-        .user { color: #58a6ff; } /* Màu xanh user GitHub */
-        .dir { color: #d2a8ff; }  /* Màu tím thư mục */
 
         .cursor {
             display: inline-block;
-            width: 10px;
-            height: 1.2em;
-            background: var(--color);
-            margin-left: 5px;
+            width: 8px;
+            height: 15px;
+            background: #58a6ff;
             animation: blink 0.8s infinite;
+            margin-left: 5px;
             vertical-align: middle;
         }
 
@@ -71,46 +47,50 @@
             50% { opacity: 0; }
         }
 
-        /* Hiệu ứng mờ ảo phía sau */
-        .glow {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, rgba(0, 255, 102, 0.05) 0%, transparent 70%);
-            pointer-events: none;
+        /* Hiệu ứng mờ dần khi hoàn tất */
+        .fade-out {
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
     </style>
 </head>
 <body>
 
-    <div class="glow"></div>
-
-    <div class="terminal-container">
-        <div class="command-line anim-typewriter d1">
-            <span class="user">guest@github</span>:<span class="dir">~</span>$ curl -I https://replit.app
-        </div>
-        <div class="command-line anim-typewriter d2">
-            HTTP/1.1 301 Moved Permanently
-        </div>
-        <div class="command-line anim-typewriter d3">
-            Location: <span style="text-decoration: underline;">https://file-viewer--gog45397...</span>
-        </div>
-        <div class="command-line anim-typewriter d4">
-            Connecting to secure node... <span class="cursor"></span>
-        </div>
+    <div class="terminal-loader" id="loader">
+        <span class="status-text" id="status">Connecting to server...</span>
+        <div class="progress-bar" id="progress">[..........]</div>
     </div>
 
     <script>
-        const DESTINATION = "https://file-viewer--gog45397.replit.app";
+        const REDIRECT_URL = "https://file-viewer--gog45397.replit.app";
+        const progressEl = document.getElementById('progress');
+        const statusEl = document.getElementById('status');
+        const loaderEl = document.getElementById('loader');
+        
+        let percent = 0;
+        const barLength = 10;
 
-        // Chuyển hướng sau khi kết thúc hiệu ứng (4 giây)
-        setTimeout(() => {
-            // Sử dụng replace để người dùng không bấm 'Back' quay lại trang loading được
-            window.location.replace(DESTINATION);
-        }, 4000);
+        // Giả lập thanh tải dữ liệu
+        const interval = setInterval(() => {
+            percent++;
+            const filled = Math.floor((percent / 100) * barLength);
+            const empty = barLength - filled;
+            
+            progressEl.innerHTML = `[${'#'.repeat(filled)}${'.'.repeat(empty)}] ${percent}%`;
+
+            if (percent === 30) statusEl.innerText = "Fetching data...";
+            if (percent === 70) statusEl.innerText = "Establishing secure link...";
+            if (percent === 90) statusEl.innerText = "Redirecting...";
+
+            if (percent >= 100) {
+                clearInterval(interval);
+                loaderEl.classList.add('fade-out'); // Hiệu ứng mờ dần trước khi đi
+                setTimeout(() => {
+                    window.location.replace(REDIRECT_URL);
+                }, 300);
+            }
+        }, 30); // Tốc độ chạy (30ms * 100 = 3 giây tổng cộng)
     </script>
 </body>
 </html>
+
