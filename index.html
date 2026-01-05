@@ -3,129 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal System Access</title>
+    <title>GitHub Terminal Redirect</title>
     <style>
         :root {
-            --term-green: #4af626;
-            --term-bg: #050505;
+            --color: #00ff66; /* Màu xanh neon hiện đại */
+            --bg: #0d1117;    /* Màu nền tối của GitHub */
         }
 
         body {
-            background-color: var(--term-bg);
-            color: var(--term-green);
-            font-family: 'Fira Code', 'Courier New', monospace;
+            background-color: var(--bg);
+            color: var(--color);
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
             overflow: hidden;
-            text-shadow: 0 0 5px rgba(74, 246, 38, 0.5);
         }
 
-        .container {
-            width: 90%;
-            max-width: 650px;
+        .terminal-container {
+            width: 100%;
+            max-width: 700px;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        .terminal-window {
-            border: 1px solid var(--term-green);
-            padding: 25px;
-            background: rgba(0, 0, 0, 0.8);
-            position: relative;
-            box-shadow: 0 0 20px rgba(74, 246, 38, 0.1);
-        }
-
-        /* Thanh tiêu đề kiểu cửa sổ Terminal */
-        .terminal-window::before {
-            content: "● ● ● remote@server: ~/file-viewer";
-            position: absolute;
-            top: -22px;
-            left: 5px;
-            font-size: 12px;
-            color: var(--term-green);
-            opacity: 0.7;
-        }
-
-        .line {
-            margin-bottom: 8px;
+        .command-line {
+            display: block;
+            margin-bottom: 10px;
             white-space: nowrap;
             overflow: hidden;
+            border-right: 3px solid transparent;
             width: 0;
-            opacity: 0.8;
-            font-size: 14px;
         }
 
-        /* Animation cho từng dòng */
-        .typewriter {
-            animation: typing 1s steps(40, end) forwards;
+        /* Hiệu ứng gõ lệnh */
+        .anim-typewriter {
+            animation: typewriter 1s steps(40) forwards;
         }
 
-        @keyframes typing {
-            from { width: 0 }
-            to { width: 100% }
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
         }
 
-        /* Delay cho các dòng khác nhau */
-        .d1 { animation-delay: 0.2s; }
-        .d2 { animation-delay: 1.2s; }
-        .d3 { animation-delay: 2.2s; }
-        .d4 { animation-delay: 3.2s; }
+        /* Delay cho từng dòng để tạo cảm giác máy đang xử lý */
+        .d1 { animation-delay: 0.1s; }
+        .d2 { animation-delay: 1.0s; }
+        .d3 { animation-delay: 2.0s; }
+        .d4 { animation-delay: 3.0s; }
+
+        .user { color: #58a6ff; } /* Màu xanh user GitHub */
+        .dir { color: #d2a8ff; }  /* Màu tím thư mục */
 
         .cursor {
             display: inline-block;
             width: 10px;
-            height: 18px;
-            background: var(--term-green);
-            animation: blink 0.7s infinite;
+            height: 1.2em;
+            background: var(--color);
             margin-left: 5px;
+            animation: blink 0.8s infinite;
             vertical-align: middle;
         }
 
         @keyframes blink {
-            0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
 
-        /* Hiệu ứng nhiễu màn hình (CRT Scanlines) */
-        .scanlines {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(
-                rgba(18, 16, 16, 0) 50%, 
-                rgba(0, 0, 0, 0.1) 50%
-            );
-            background-size: 100% 4px;
-            z-index: 100;
+        /* Hiệu ứng mờ ảo phía sau */
+        .glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0, 255, 102, 0.05) 0%, transparent 70%);
             pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-    <div class="scanlines"></div>
+    <div class="glow"></div>
 
-    <div class="container">
-        <div class="terminal-window">
-            <div class="line typewriter d1">> [SYSTEM] Initiating secure tunnel...</div>
-            <div class="line typewriter d2">> [INFO] Resolving endpoint: file-viewer--gog45397</div>
-            <div class="line typewriter d3">> [STATUS] Handshake successful. Encrypting session...</div>
-            <div class="line typewriter d4">
-                > [OK] Redirecting to node... <span class="cursor"></span>
-            </div>
+    <div class="terminal-container">
+        <div class="command-line anim-typewriter d1">
+            <span class="user">guest@github</span>:<span class="dir">~</span>$ curl -I https://replit.app
+        </div>
+        <div class="command-line anim-typewriter d2">
+            HTTP/1.1 301 Moved Permanently
+        </div>
+        <div class="command-line anim-typewriter d3">
+            Location: <span style="text-decoration: underline;">https://file-viewer--gog45397...</span>
+        </div>
+        <div class="command-line anim-typewriter d4">
+            Connecting to secure node... <span class="cursor"></span>
         </div>
     </div>
 
     <script>
-        // Cấu hình link Replit mới của bạn
-        const REDIRECT_URL = "https://file-viewer--gog45397.replit.app";
-        
-        // Chờ hiệu ứng chạy hết (khoảng 4.5 giây) rồi chuyển trang
-        setTimeout(() => {
-            window.location.replace(REDIRECT_URL);
-        }, 4500);
-    </script>
+        const DESTINATION = "https://file-viewer--gog45397.replit.app";
 
+        // Chuyển hướng sau khi kết thúc hiệu ứng (4 giây)
+        setTimeout(() => {
+            // Sử dụng replace để người dùng không bấm 'Back' quay lại trang loading được
+            window.location.replace(DESTINATION);
+        }, 4000);
+    </script>
 </body>
 </html>
