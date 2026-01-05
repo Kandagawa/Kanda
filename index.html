@@ -3,94 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading...</title>
+    <title>Đang tải...</title>
     <style>
+        /* Thiết kế tối giản, sang trọng */
         body {
-            background-color: #0e1117; /* Màu nền tối của GitHub */
-            color: #c9d1d9; /* Màu chữ xám trắng nhẹ */
-            font-family: 'SFMono-Regular', Consolas, monospace;
+            background-color: #ffffff; /* Hoặc #000000 nếu bạn thích nền tối */
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #1d1d1f;
         }
 
-        .terminal-loader {
-            width: 300px;
+        .loader-wrapper {
+            text-align: center;
         }
 
-        .status-text {
+        /* Vòng xoay mảnh, tinh tế */
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 2px solid #f2f2f2;
+            border-top: 2px solid #007aff; /* Màu xanh Apple */
+            border-radius: 50%;
+            animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chữ loading mờ nhẹ */
+        .loading-text {
             font-size: 14px;
-            margin-bottom: 10px;
-            display: block;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+            color: #86868b;
+            animation: pulse 1.5s infinite ease-in-out;
         }
 
-        /* Thanh tiến trình bằng ký tự */
-        .progress-bar {
-            letter-spacing: 2px;
-            font-size: 12px;
-            color: #58a6ff; /* Màu xanh đặc trưng */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
         }
 
-        .cursor {
-            display: inline-block;
-            width: 8px;
-            height: 15px;
-            background: #58a6ff;
-            animation: blink 0.8s infinite;
-            margin-left: 5px;
-            vertical-align: middle;
-        }
-
-        @keyframes blink {
-            50% { opacity: 0; }
-        }
-
-        /* Hiệu ứng mờ dần khi hoàn tất */
-        .fade-out {
-            opacity: 0;
-            transition: opacity 0.5s ease;
+        /* Chế độ tối (nếu máy người dùng dùng Dark Mode) */
+        @media (prefers-color-scheme: dark) {
+            body { background-color: #000000; color: #ffffff; }
+            .spinner { border-color: #2c2c2e; border-top-color: #0a84ff; }
+            .loading-text { color: #a1a1a6; }
         }
     </style>
 </head>
 <body>
 
-    <div class="terminal-loader" id="loader">
-        <span class="status-text" id="status">Connecting to server...</span>
-        <div class="progress-bar" id="progress">[..........]</div>
+    <div class="loader-wrapper">
+        <div class="spinner"></div>
+        <div class="loading-text">Đang tải nội dung...</div>
     </div>
 
     <script>
+        // Link đích của bạn
         const REDIRECT_URL = "https://file-viewer--gog45397.replit.app";
-        const progressEl = document.getElementById('progress');
-        const statusEl = document.getElementById('status');
-        const loaderEl = document.getElementById('loader');
         
-        let percent = 0;
-        const barLength = 10;
-
-        // Giả lập thanh tải dữ liệu
-        const interval = setInterval(() => {
-            percent++;
-            const filled = Math.floor((percent / 100) * barLength);
-            const empty = barLength - filled;
-            
-            progressEl.innerHTML = `[${'#'.repeat(filled)}${'.'.repeat(empty)}] ${percent}%`;
-
-            if (percent === 30) statusEl.innerText = "Fetching data...";
-            if (percent === 70) statusEl.innerText = "Establishing secure link...";
-            if (percent === 90) statusEl.innerText = "Redirecting...";
-
-            if (percent >= 100) {
-                clearInterval(interval);
-                loaderEl.classList.add('fade-out'); // Hiệu ứng mờ dần trước khi đi
-                setTimeout(() => {
-                    window.location.replace(REDIRECT_URL);
-                }, 300);
-            }
-        }, 30); // Tốc độ chạy (30ms * 100 = 3 giây tổng cộng)
+        // Chuyển hướng sau 2 giây để tạo cảm giác mượt mà
+        setTimeout(() => {
+            window.location.replace(REDIRECT_URL);
+        }, 2000);
     </script>
+
 </body>
 </html>
-
