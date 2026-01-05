@@ -3,58 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đang chuyển hướng...</title>
+    <title>Terminal System Access</title>
     <style>
-        /* Thiết kế tối giản, hiện đại */
+        :root {
+            --term-green: #4af626;
+            --term-bg: #050505;
+        }
+
         body {
-            background: #0f172a;
-            color: #f8fafc;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--term-bg);
+            color: var(--term-green);
+            font-family: 'Fira Code', 'Courier New', monospace;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            overflow: hidden;
+            text-shadow: 0 0 5px rgba(74, 246, 38, 0.5);
         }
 
-        .loader-container {
-            text-align: center;
+        .container {
+            width: 90%;
+            max-width: 650px;
         }
 
-        /* Hiệu ứng vòng xoay vô tận */
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 15px;
+        .terminal-window {
+            border: 1px solid var(--term-green);
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.8);
+            position: relative;
+            box-shadow: 0 0 20px rgba(74, 246, 38, 0.1);
         }
 
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
+        /* Thanh tiêu đề kiểu cửa sổ Terminal */
+        .terminal-window::before {
+            content: "● ● ● remote@server: ~/file-viewer";
+            position: absolute;
+            top: -22px;
+            left: 5px;
+            font-size: 12px;
+            color: var(--term-green);
+            opacity: 0.7;
         }
 
-        p { font-size: 14px; opacity: 0.8; letter-spacing: 0.5px; }
+        .line {
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            width: 0;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        /* Animation cho từng dòng */
+        .typewriter {
+            animation: typing 1s steps(40, end) forwards;
+        }
+
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+
+        /* Delay cho các dòng khác nhau */
+        .d1 { animation-delay: 0.2s; }
+        .d2 { animation-delay: 1.2s; }
+        .d3 { animation-delay: 2.2s; }
+        .d4 { animation-delay: 3.2s; }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 18px;
+            background: var(--term-green);
+            animation: blink 0.7s infinite;
+            margin-left: 5px;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Hiệu ứng nhiễu màn hình (CRT Scanlines) */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.1) 50%
+            );
+            background-size: 100% 4px;
+            z-index: 100;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
-    <div class="loader-container">
-        <div class="spinner"></div>
-        <p>Đang kết nối đến máy chủ...</p>
+    <div class="scanlines"></div>
+
+    <div class="container">
+        <div class="terminal-window">
+            <div class="line typewriter d1">> [SYSTEM] Initiating secure tunnel...</div>
+            <div class="line typewriter d2">> [INFO] Resolving endpoint: file-viewer--gog45397</div>
+            <div class="line typewriter d3">> [STATUS] Handshake successful. Encrypting session...</div>
+            <div class="line typewriter d4">
+                > [OK] Redirecting to node... <span class="cursor"></span>
+            </div>
+        </div>
     </div>
 
     <script>
-        // ==========================================
-        // CẤU HÌNH LINK TẠI ĐÂY
-        // ==========================================
-        const REDIRECT_URL = "https://dd4449df-2a40-4a6a-b225-f6b8d7760c4f-00-39o5s79ccgg0s.worf.replit.dev/";
+        // Cấu hình link Replit mới của bạn
+        const REDIRECT_URL = "https://file-viewer--gog45397.replit.app";
         
-        // Thực hiện chuyển hướng ngay lập tức
-        window.location.replace(REDIRECT_URL);
+        // Chờ hiệu ứng chạy hết (khoảng 4.5 giây) rồi chuyển trang
+        setTimeout(() => {
+            window.location.replace(REDIRECT_URL);
+        }, 4500);
     </script>
 
 </body>
