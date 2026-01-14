@@ -7,16 +7,21 @@ YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-# 1. Ẩn log hệ thống rác và hiện thanh tiến độ khi cài đặt
+# 1. Ép hệ thống ẩn toàn bộ Log Mirror rác và hiện thanh tiến độ chuẩn
 export DEBIAN_FRONTEND=noninteractive
-echo "quiet \"2\";" > $PREFIX/etc/apt/apt.conf.d/99quiet
+# Cấu hình APT im lặng và hiện thanh tiến độ đẹp
+mkdir -p $PREFIX/etc/apt/apt.conf.d
 echo "Dpkg::Progress-Fancy \"1\";" > $PREFIX/etc/apt/apt.conf.d/99progressbar
+echo "quiet \"2\";" > $PREFIX/etc/apt/apt.conf.d/99quiet
+echo "APT::Color \"1\";" >> $PREFIX/etc/apt/apt.conf.d/99quiet
 
 clear
-echo -e "${CYAN}[*] Đang tối ưu hệ thống & Cài đặt gói (Vui lòng chờ...)${NC}"
-pkg update -y && pkg install tor privoxy curl -y -qq
+echo -e "${CYAN}[*] Đang tối ưu hệ thống & Cài đặt... (Vui lòng đợi thanh tiến độ)${NC}"
+# Sử dụng tham số -y -qq để chặn đứng log mirror hiện ra màn hình
+apt-get update -y -qq > /dev/null 2>&1
+apt-get install tor privoxy curl net-tools -y -qq
 
-# 2. Giao diện thiết lập thời gian
+# 2. Giao diện thiết lập
 clear
 echo -e "${CYAN}=======================================${NC}"
 echo -e "${YELLOW}    THIẾT LẬP KANDA PROXY AUTO-ROTATE   ${NC}"
@@ -33,7 +38,7 @@ echo -e "StrictNodes 0\nMaxCircuitDirtiness $SECONDS\nCircuitBuildTimeout 10" > 
 sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
 grep -q "forward-socks5t" $PREFIX/etc/privoxy/config || echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
 
-# 4. Tạo lệnh 'kanda' với Log không chồng lấn và Fix lỗi kết nối
+# 4. Tạo lệnh 'kanda' - Fix lỗi IP & Log chồng lấn
 cat <<EOT > $PREFIX/bin/kanda
 #!/data/data/com.termux/files/usr/bin/bash
 RED='\033[0;31m'
@@ -45,49 +50,51 @@ NC='\033[0m'
 pkill tor
 pkill privoxy
 clear
-echo -e "\${CYAN}[*] Đang khởi động Tor... (Có thể mất 15-30s)\${NC}"
-tor > /dev/null 2>&1 &
+echo -e "\${CYAN}[*] Đang khởi động mạng Tor... (Đợi đạt 100%)\${NC}"
 
-# Chờ Tor khởi động thực sự (Check cổng 9050)
-while ! nc -z localhost 9050; do   
-  sleep 1
+# Chạy Tor ngầm và theo dõi tiến độ tải
+tor > /data/data/com.termux/files/usr/tmp/tor.log 2>&1 &
+
+# Vòng lặp đợi Tor đạt 100% (Fix lỗi không lấy được IP của bạn)
+while true; do
+    if grep -q "Bootstrapped 100%" /data/data/com.termux/files/usr/tmp/tor.log; then
+        echo -e "\${GREEN}[+] Mạng Tor đã tải xong 100%!\${NC}"
+        break
+    fi
+    # Hiển thị tiến độ từ log của Tor ra màn hình cho đẹp
+    PROGRESS=\$(grep -o "Bootstrapped [0-9]*%" /data/data/com.termux/files/usr/tmp/tor.log | tail -1)
+    echo -ne "\${YELLOW}[>] Đang kết nối: \${PROGRESS}...\r\${NC}"
+    sleep 1
 done
 
 privoxy --no-daemon \$PREFIX/etc/privoxy/config > /dev/null 2>&1 &
 
-echo -e "\${GREEN}[+] HỆ THỐNG ĐÃ SẴN SÀNG!\${NC}"
 echo -e "\${YELLOW}---------------------------------------\${NC}"
 echo -e "💡 Proxy: \${CYAN}127.0.0.1:8118\${NC}"
 echo -e "⏱ Xoay IP: \${CYAN}$SECONDS giây/lần\${NC}"
 echo -e "\${YELLOW}---------------------------------------\${NC}"
 
-# Kiểm tra IP lần đầu (có cơ chế thử lại nếu Tor chưa xong)
-echo -e "\${YELLOW}[*] Đang lấy danh tính IP...\${NC}"
-MAX_RETRIES=5
-for i in \$(seq 1 \$MAX_RETRIES); do
-    CURRENT_IP=\$(curl -s --max-time 10 -x http://127.0.0.1:8118 https://api.ipify.org)
-    if [ ! -z "\$CURRENT_IP" ]; then break; fi
-    echo -e "\${RED}[!] Đang kết nối lại mạng Tor (Lần \$i)...\${NC}"
-    sleep 5
-done
+# Kiểm tra IP thực tế (Đã có Tor 100% nên chắc chắn thành công)
+echo -e "\${YELLOW}[*] Đang xác thực IP...\${NC}"
+CURRENT_IP=\$(curl -s --max-time 15 -x http://127.0.0.1:8118 https://api.ipify.org)
+LOCATION=\$(curl -s -x http://127.0.0.1:8118 https://ipapi.co/\$CURRENT_IP/country_name/)
 
 if [ -z "\$CURRENT_IP" ]; then
-    echo -e "\${RED}[!] Lỗi: Mạng Tor chậm, vui lòng gõ lại lệnh 'kanda'.\${NC}"
+    echo -e "\${RED}[!] Lỗi: Mạng ổn định chưa kịp thiết lập. Hãy thử lại.\${NC}"
 else
-    LOCATION=\$(curl -s -x http://127.0.0.1:8118 https://ipapi.co/\$CURRENT_IP/country_name/)
-    echo -e "🌍 IP: \${GREEN}\$CURRENT_IP\${NC} | 📍 Quốc gia: \${GREEN}\$LOCATION\${NC}"
+    echo -e "🌍 IP Hiện tại: \${GREEN}\$CURRENT_IP\${NC} | \${GREEN}\$LOCATION\${NC}"
 fi
 echo -e "\${YELLOW}---------------------------------------\${NC}"
 
-# Vòng lặp Log sạch (Không bị chồng dòng)
+# Vòng lặp đếm ngược (Sạch, không chồng dòng)
 while true; do
     for (( i=\$SECONDS; i>0; i-- )); do
-        echo -ne "\${YELLOW}[Sẵn sàng] - Đợi xoay IP sau: \${RED}\${i}s \${NC}\r"
+        echo -ne "\${YELLOW}[Sẵn sàng] - Đổi IP sau: \${RED}\${i} giây \${NC}\r"
         sleep 1
     done
     NEW_IP=\$(curl -s --max-time 10 -x http://127.0.0.1:8118 https://api.ipify.org)
     if [ ! -z "\$NEW_IP" ]; then
-        echo -e "\n\${GREEN}[🔄] \$(date +%H:%M:%S) - ĐÃ ĐỔI IP MỚI: \$NEW_IP\${NC}"
+        echo -e "\n\${GREEN}[🔄] \$(date +%H:%M:%S) -> IP MỚI: \$NEW_IP\${NC}"
     fi
 done
 EOT
@@ -95,4 +102,4 @@ EOT
 chmod +x $PREFIX/bin/kanda
 clear
 echo -e "${GREEN}CÀI ĐẶT HOÀN TẤT!${NC}"
-echo -e "Bây giờ bạn hãy gõ: ${YELLOW}kanda${NC}"
+echo -e "Gõ lệnh ${YELLOW}kanda${NC} để bắt đầu."
