@@ -1,5 +1,12 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+# --- TỰ ĐỘNG THÊM PHÍM TẮT KANDA VÀO HỆ THỐNG ---
+if ! grep -q "alias kanda=" ~/.bashrc; then
+    # Thay link GitHub của ní vào đây nếu cần, hiện tại dùng link gốc
+    echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+    source ~/.bashrc > /dev/null 2>&1
+fi
+
 # --- MÀU SẮC ---
 G='\033[1;32m'
 Y='\033[1;33m'
@@ -39,7 +46,6 @@ while true; do
     stop_flag=false
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, us... hoặc all)${NC}"
-        # Thụt xuống 1 dòng theo ý ní
         echo -e "\n${R}(Hãy ấn [CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có quốc gia đó)${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
@@ -98,7 +104,6 @@ while true; do
             
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
-                # Cụm Host/Port/Region thụt xuống 1 dòng
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
@@ -111,5 +116,4 @@ while true; do
 
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
-    # Đã bỏ log quay lại bước chọn quốc gia ở đây
 done
