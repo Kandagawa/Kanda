@@ -19,7 +19,7 @@ render_bar() {
     local w=25
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r\033[K${C}[*] Đang tải dữ liệu... ${B}[${G}"
+    printf "\r\033[K${C}[*] Đang tải dữ liệu: ${B}[${G}"
     for ((j=0; j<filled; j++)); do printf "●"; done
     printf "${W}"
     for ((j=0; j<empty; j++)); do printf "○"; done
@@ -91,14 +91,14 @@ while true; do
 
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
-    echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
+    echo -ne "${C}[*] Thiết lập mạch kết nối: Lỗi${NC}"
     
     percent=0
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
-            printf "\r${C}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
+            printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
