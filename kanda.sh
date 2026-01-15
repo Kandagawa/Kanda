@@ -18,7 +18,7 @@ show_progress() {
     for ((i=current; i<=target; i++)); do
         local filled=$((i*w/100))
         local empty=$((w-filled))
-        printf "\r\033[K${Y}[*] Đang tải dữ liệu... ${C}[${G}"
+        printf "\r\033[K${B}[*] Đang tải dữ liệu... ${C}[${G}"
         for ((j=0; j<filled; j++)); do printf "●"; done
         printf "${W}"
         for ((j=0; j<empty; j++)); do printf "○"; done
@@ -34,9 +34,7 @@ pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
 rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 
 clear
-echo -e "${C}========================================${NC}"
-echo -e "${G}    HỆ THỐNG CẤU HÌNH XOAY IP QUỐC GIA  ${NC}"
-echo -e "${C}========================================${NC}"
+echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 
 # --- VÒNG LẶP CHÍNH ---
 while true; do
@@ -69,7 +67,7 @@ while true; do
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     mkdir -p $PREFIX/etc/tor
 
-    # Cấu hình
+    # Cấu hình dịch vụ
     sec=30
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
@@ -81,8 +79,8 @@ while true; do
 
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-    # Đọc log Tor và hiển thị phần trăm ngay dưới dòng trên
-    echo -e "\n${B}[*] Thiết lập mạch kết nối...${NC}"
+    # Thiết lập mạch kết nối
+    echo -ne "${B}[*] Thiết lập mạch kết nối... 0%${NC}"
     start_time=$(date +%s)
     finished=false
     percent=0
@@ -90,22 +88,20 @@ while true; do
     while IFS= read -r line; do
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
-            # Hiển thị phần trăm ngay tại dòng này
-            printf "\r${Y}>>> Tiến trình Tor: ${G}${percent}%%${NC}"
+            printf "\r${B}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
             
             if [ "$percent" -eq 100 ]; then
-                echo -e "\n\n${G}[ THÀNH CÔNG ] Mạch Tor đã sẵn sàng!${NC}"
-                echo -e "${C}┌──────────────────────────────────────┐${NC}"
-                printf "${C}│${NC}  ${B}HOST:   ${G}%-26s${NC} ${C}│${NC}\n" "127.0.0.1"
-                printf "${C}│${NC}  ${B}PORT:   ${G}%-26s${NC} ${C}│${NC}\n" "8118"
+                echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
+                echo -e "${B}HOST:   ${G}127.0.0.1${NC}"
+                echo -e "${B}PORT:   ${G}8118${NC}"
                 if [ ! -z "$country_code" ]; then
-                    printf "${C}│${NC}  ${B}REGION: ${Y}%-26s${NC} ${C}│${NC}\n" "${country_code^^}"
+                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                 else
-                    printf "${C}│${NC}  ${B}REGION: ${Y}%-26s${NC} ${C}│${NC}\n" "WORLDWIDE"
+                    echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 fi
-                echo -e "${C}└──────────────────────────────────────┘${NC}"
-                echo -e "${P}>> Nhấn ${R}CTRL + C${P} để đổi quốc gia khác <<${NC}"
+                echo -e "\n${W}* Nhấn CTRL+C để đổi quốc gia${NC}"
                 
+                # Khởi động xoay IP ngầm
                 pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
                 ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) &
                 
@@ -116,7 +112,7 @@ while true; do
         
         current_time=$(date +%s)
         if [ $((current_time - start_time)) -ge 5 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Không thể kết nối (0%% sau 5s). Vui lòng thử lại!${NC}"
+            echo -e "\n${R}[ LỖI ] Kết nối thất bại (0%% sau 5s). Vui lòng thử lại!${NC}"
             pkill -9 tor; pkill -9 privoxy
             break
         fi
