@@ -1,72 +1,64 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# 1. Cài đặt im lặng (Ẩn log mirror rác)
-clear
-echo -e "\033[0;36m[*] Đang cài đặt hệ thống Kanda Proxy...\033[0m"
-export DEBIAN_FRONTEND=noninteractive
-pkg update -y -qq > /dev/null 2>&1
-pkg install tor privoxy curl net-tools -y -qq > /dev/null 2>&1
+# 1. Hàm cài đặt (Ẩn log rác)
+setup_system() {
+    echo -e "\033[0;36m[*] Đang tối ưu hệ thống và kiểm tra gói...\033[0m"
+    export DEBIAN_FRONTEND=noninteractive
+    pkg update -y -qq > /dev/null 2>&1
+    pkg install tor privoxy curl net-tools jq -y -qq > /dev/null 2>&1
+    
+    # Tạo bí danh (alias)
+    if ! grep -q "alias kanda" ~/.bashrc; then
+        echo "alias kanda='bash <(curl -Ls is.gd/kandaprx)'" >> ~/.bashrc
+    fi
+}
 
-# 2. Tạo lệnh 'kanda'
-cat <<EOT > $PREFIX/bin/kanda
-#!/data/data/com.termux/files/usr/bin/bash
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
+# 2. Giao diện nhập liệu
 clear
-echo -e "\${CYAN}=======================================\${NC}"
-echo -e "\${YELLOW}        KANDA PROXY AUTO-ROTATE        \${NC}"
-echo -e "\${CYAN}=======================================\${NC}"
-echo -e "\${GREEN}[?] Nhập số giây đổi IP (10-300):\${NC}"
+echo -e "\033[1;34m╭────────────────────────────────────────────────╮\033[0m"
+echo -e "\033[1;34m│\033[1;33m          KANDA PROXY AUTO-ROTATE SYSTEM        \033[1;34m│\033[0m"
+echo -e "\033[1;34m╰────────────────────────────────────────────────╯\033[0m"
+echo -e "\033[0;32m[?] Nhập số giây đổi IP (5-300s)\033[0m"
 read -p ">> " SEC_INPUT
 
-if [[ ! "\$SEC_INPUT" =~ ^[0-9]+$ ]] || [ "\$SEC_INPUT" -lt 10 ]; then SEC_INPUT=10; fi
-if [ "\$SEC_INPUT" -gt 300 ]; then SEC_INPUT=300; fi
+# Kiểm tra điều kiện
+if [[ ! "$SEC_INPUT" =~ ^[0-9]+$ ]]; then SEC_INPUT=60; fi
+if [ "$SEC_INPUT" -lt 5 ]; then SEC_INPUT=5; fi
+if [ "$SEC_INPUT" -gt 300 ]; then SEC_INPUT=300; fi
 
-# Cấu hình Tor Control - QUAN TRỌNG ĐỂ ĐỔI IP
-echo -e "StrictNodes 0\nMaxCircuitDirtiness \$SEC_INPUT\nCircuitBuildTimeout 10\nControlPort 9051\nCookieAuthentication 0" > \$PREFIX/etc/tor/torrc
-sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' \$PREFIX/etc/privoxy/config
-grep -q "forward-socks5t" \$PREFIX/etc/privoxy/config || echo "forward-socks5t / 127.0.0.1:9050 ." >> \$PREFIX/etc/privoxy/config
+# 3. Cấu hình hệ thống
+setup_system
+mkdir -p $PREFIX/etc/tor
+echo -e "StrictNodes 0\nMaxCircuitDirtiness $SEC_INPUT\nCircuitBuildTimeout 5\nControlPort 9051\nCookieAuthentication 0\nLog notice stdout" > $PREFIX/etc/tor/torrc
 
-pkill tor; pkill privoxy
-sleep 1
-echo -e "\n\${CYAN}[*] Đang khởi động mạng Tor... (Đợi 100%)\${NC}"
-rm -f \$PREFIX/tmp/tor.log
-tor > \$PREFIX/tmp/tor.log 2>&1 &
+sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
+grep -q "forward-socks5t" $PREFIX/etc/privoxy/config || echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
+grep -q "kanda.proxy" $PREFIX/etc/hosts || echo "127.0.0.1 kanda.proxy" >> $PREFIX/etc/hosts
 
-while true; do
-    if grep -q "Bootstrapped 100%" \$PREFIX/tmp/tor.log; then break; fi
-    PROGRESS=\$(grep -o "Bootstrapped [0-9]*%" \$PREFIX/tmp/tor.log | tail -1)
-    echo -ne "\${YELLOW}[>] Tiến độ: \${PROGRESS}...\r\${NC}"
-    sleep 1
-done
-
-privoxy --no-daemon \$PREFIX/etc/privoxy/config > /dev/null 2>&1 &
-echo -e "\n\${GREEN}[+] Mạng đã sẵn sàng!\${NC}"
-
-while true; do
-    # ÉP ĐỔI IP QUỐC TẾ MỚI
-    (echo authenticate ""; echo signal newnym; echo quit) | nc localhost 9051 > /dev/null 2>&1
-    
-    # Lấy IP và Quốc gia (Không bao giờ hiện IP thật)
-    INFO=\$(curl -s --max-time 15 -x http://127.0.0.1:8118 "https://ipapi.co/json/" | jq -r '.ip + " [" + .country_name + "]"' 2>/dev/null)
-    
-    if [ -z "\$INFO" ] || [[ "\$INFO" == *"null"* ]]; then
-        PRINT_LOG="\${RED}Đang lấy IP mới...\${NC}"
-    else
-        PRINT_LOG="\${GREEN}\$INFO\${NC}"
-    fi
-
-    for (( i=\$SEC_INPUT; i>0; i-- )); do
-        echo -ne "\r\${YELLOW}[🔄] IP: \$PRINT_LOG | Xoay sau: \${RED}\${i}s  \${NC}"
-        sleep 1
-    done
-done
-EOT
-
-chmod +x $PREFIX/bin/kanda
+# 4. Khởi chạy tiến trình
+pkill tor; pkill privoxy; sleep 1
 clear
-echo -e "\033[0;32mCÀI ĐẶT HOÀN TẤT!\033[0m Gõ lệnh: \033[0;33mkanda\033[0m"
+
+# Chạy Privoxy ngầm
+privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 &
+
+# Hàm hiển thị IP (Chạy ngầm để không đè log)
+show_ip_status() {
+    echo -e "\033[1;32m--- HỆ THỐNG ĐÃ BẮT ĐẦU ---\033[0m"
+    echo -e "\033[1;36mProxy: kanda.proxy:8118 | Chu kỳ: ${SEC_INPUT}s\033[0m"
+    echo -e "\033[1;34m--------------------------------------------------\033[0m"
+    while true; do
+        # Lấy IP qua proxy
+        IP_INFO=$(curl -s -x http://127.0.0.1:8118 "https://ipapi.co/json/" | jq -r '.ip + " [" + .country_name + "]"' 2>/dev/null)
+        if [ ! -z "$IP_INFO" ] && [[ "$IP_INFO" != *"null"* ]]; then
+            echo -e "\033[1;33m[🌐] IP HIỆN TẠI: \033[1;32m$IP_INFO\033[0m"
+        fi
+        sleep $SEC_INPUT
+    done
+}
+
+# Chạy hàm hiện IP trong một luồng riêng để log Tor trôi bên dưới
+show_ip_status &
+
+# Chạy Tor chính thức (Hiện Log trực tiếp)
+tor
