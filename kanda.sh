@@ -8,6 +8,7 @@ C='\033[1;36m'
 NC='\033[0m'
 
 # --- HÀM THANH TIẾN TRÌNH TỰ TẠO ---
+# Cập nhật: Thêm cơ chế nhảy số mượt hơn
 progress() {
     local w=40 p=$1; shift
     printf "\r${B}[%- ${w}s] %d%% ${NC}" "$(printf "#%.0s" $(seq 1 $((p*w/100))))" "$p"
@@ -16,17 +17,19 @@ progress() {
 clear
 echo -e "${Y}--- ĐANG KHỞI TẠO HỆ THỐNG ---${NC}"
 
-# 1. Cài đặt thầm lặng (thêm netcat-openbsd để gửi lệnh xoay IP)
-(
-    pkg update -y > /dev/null 2>&1 && progress 30
-    pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1 && progress 70
-    mkdir -p $PREFIX/etc/tor && progress 100
-    echo -e "\n"
-)
+# 1. Cài đặt thầm lặng (Đã tách để thanh progress chạy sớm hơn)
+progress 10
+pkg update -y > /dev/null 2>&1
+progress 40
+pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
+progress 80
+mkdir -p $PREFIX/etc/tor
+progress 100
+echo -e "\n${G}[ DONE ] Cài đặt hoàn tất.${NC}"
+sleep 1
 
-# 2. Cấu hình ép xoay gắt
-sec=30
-# Thêm ControlPort để có thể ép xoay IP ngay lập tức bằng lệnh
+# 2. Cấu hình ép xoay gắt (20 GIÂY)
+sec=20
 echo -e "StrictNodes 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLearnCircuitBuildTimeout 0\nControlPort 9051\nCookieAuthentication 0\nLog notice stdout" > $PREFIX/etc/tor/torrc
 
 sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
@@ -47,7 +50,7 @@ count=0
     sleep $sec
     # Gửi lệnh NEWNYM tới ControlPort của Tor để ép đổi IP ngay lập tức
     echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
-    # Vẫn gửi thêm HUP để Tor cập nhật trạng thái log ra màn hình cho ní xem
+    # Gửi HUP để cập nhật log
     pkill -HUP tor
   done
 ) &
