@@ -38,7 +38,7 @@ echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 while true; do
     stop_flag=false
     while true; do
-        echo -e "\n${Y}[?] Nhập mã quốc gia (hoặc all)${NC}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, us, cn hoặc all)${NC}"
         # Thụt xuống 1 dòng theo ý ní
         echo -e "\n${R}(Nếu bị treo 50% vì ấn sai mã hãy ấn [CTRL + C] để quay lại)${NC}"
         printf "    Lựa chọn: "
