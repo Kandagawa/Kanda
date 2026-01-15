@@ -7,14 +7,15 @@ B='\033[1;34m'
 C='\033[1;36m'
 NC='\033[0m'
 
-# --- HÀM THANH TIẾN TRÌNH CHẠY MƯỢT (CHỈ 1 DÒNG) ---
+# --- HÀM THANH TIẾN TRÌNH CHẠY MƯỢT (CHỈ 1 DÒNG DUY NHẤT) ---
 run_progress() {
     local target=$1
     local current=$2
     local w=40
     for ((i=current; i<=target; i++)); do
+        # \r để đưa con trỏ về đầu dòng, ghi đè lên dòng cũ
         printf "\r${Y}[*] Đang tải dữ liệu... ${B}[%- ${w}s] %d%% ${NC}" "$(printf "#%.0s" $(seq 1 $((i*w/100))))" "$i"
-        sleep 0.01
+        sleep 0.015
     done
 }
 
@@ -30,8 +31,8 @@ pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
 run_progress 100 81
 mkdir -p $PREFIX/etc/tor
 
-echo -e "\n${G}[ DONE ] Sẵn sàng khởi động!${NC}"
-sleep 1
+echo -e "\n${G}[ DONE ] Cấu hình hoàn tất, đang khởi động hệ thống...${NC}"
+sleep 1.5
 
 # 2. Cấu hình (30 GIÂY)
 sec=30
@@ -48,7 +49,7 @@ clear
 # 4. Chạy Privoxy NGẦM
 privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-# 5. Vòng lặp xoay IP nhẹ nhàng
+# 5. Vòng lặp xoay IP nhẹ nhàng (Sử dụng NEWNYM để đổi IP sạch)
 count=0
 (
   while true; do
@@ -64,6 +65,7 @@ echo -e "${C}--------------------------------------------------${NC}"
 echo -e "\n"
 
 stdbuf -oL tor 2>/dev/null | grep --line-buffered -E "Bootstrapped|Reloading config" | while read -r line; do
+    # Di chuyển lên 1 dòng và xóa dòng đó để ghi đè log mới
     echo -ne "\033[1A\033[K" 
     
     if [[ "$line" == *"Bootstrapped 100%"* ]]; then
