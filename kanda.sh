@@ -50,8 +50,8 @@ while true; do
         fi
     done
 
-    # --- BƯỚC MỚI: DỌN DẸP HỆ THỐNG ĐỂ FIX LỖI 0% ---
-    echo -e "${B}[*] Đang dọn dẹp cấu hình cũ...${NC}"
+    # --- DỌN DẸP HỆ THỐNG TRƯỚC KHI CHẠY ---
+    echo -e "${B}[*] Đang làm sạch dữ liệu cũ...${NC}"
     pkill -9 tor > /dev/null 2>&1
     pkill -9 privoxy > /dev/null 2>&1
     pkg uninstall tor privoxy -y > /dev/null 2>&1
@@ -59,15 +59,11 @@ while true; do
     sleep 1
 
     echo -e "${B}[*] Đang chuẩn bị dịch vụ...${NC}"
-    
-    # Cài đặt lại từ đầu để đảm bảo mạch chạy
-    show_progress 0 30
+    show_progress 0 40
     pkg update -y > /dev/null 2>&1
-    
-    show_progress 31 80
+    show_progress 41 85
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
-    
-    show_progress 81 100
+    show_progress 86 100
     mkdir -p $PREFIX/etc/tor
     echo -e "\n${G}[ DONE ] Đã cài đặt mới Tor & Privoxy.${NC}"
 
@@ -85,13 +81,12 @@ while true; do
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
     sleep 1
 
-    # 4. Đọc log Tor và in thông số
+    # 4. Đọc log Tor và kiểm tra logic 5 giây 0%
     echo -e "${B}[*] Đang thiết lập mạch kết nối...${NC}"
     start_time=$(date +%s)
     finished=false
     percent=0
 
-    # Khởi chạy tor và xử lý log
     stdbuf -oL tor 2>/dev/null | while read -r line; do
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
@@ -101,13 +96,8 @@ while true; do
                 echo -e "\n"
                 echo -e "${B}HOST:   ${G}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${G}8118${NC}"
-                if [ ! -z "$country_code" ]; then
-                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
-                else
-                    echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
-                fi
+                [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 
-                # Khởi động xoay IP ngầm
                 ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) &
                 
                 finished=true
@@ -115,17 +105,17 @@ while true; do
             fi
         fi
         
-        # Check 3s nếu đứng 0%
         current_time=$(date +%s)
-        if [ $((current_time - start_time)) -ge 3 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Mạch đứng 0%% sau 3s. Đang tiến hành cài lại...${NC}"
+        # CHỈ BÁO LỖI SAI MÃ NẾU ĐỨNG 0% QUÁ 5 GIÂY
+        if [ $((current_time - start_time)) -ge 5 ] && [ "$percent" -eq 0 ]; then
+            echo -e "\n${R}[ LỖI ] Mã '${country_code^^}' sai hoặc không có server (0%% sau 5s).${NC}"
+            pkill -9 tor; pkill -9 privoxy
             break
         fi
     done
 
-    # Nếu hoàn thành 100% thì thoát vòng lặp nhập mã
-    # Nếu bị đứng 0%, vòng lặp sẽ tự động quay lại bước "Dọn dẹp hệ thống" ở trên
-    if [[ $(pgrep -x tor) && "$percent" -eq 100 ]]; then
+    # Nếu xong 100% thì thoát, nếu lỗi thì quay lại nhập mã
+    if [ "$finished" = true ]; then
         break
     fi
 done
