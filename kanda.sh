@@ -1,13 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- Tự động cài lệnh kanda vào hệ thống nếu chưa có ---
+# --- 1. GHIM LỆNH VÀO HỆ THỐNG (FIX LỖI KHÔNG NHẬN LỆNH) ---
 if [ ! -f "$PREFIX/bin/kanda" ]; then
+    # Tải nội dung từ GitHub và lưu trực tiếp thành file kanda
     curl -Ls is.gd/kandaprx -o $PREFIX/bin/kanda
     chmod +x $PREFIX/bin/kanda
-    grep -q "alias kanda" ~/.bashrc || echo "alias kanda='kanda'" >> ~/.bashrc
+    # Cập nhật alias để gõ kanda là chạy file trong bin
+    grep -q "alias kanda" ~/.bashrc || echo "alias kanda='$PREFIX/bin/kanda'" >> ~/.bashrc
+    source ~/.bashrc
 fi
 
-# --- 100% MÃ NGUỒN CỦA NÍ ---
+# --- 2. 100% MÃ NGUỒN GỐC ---
 pkg update -y && pkg install tor privoxy curl -y && \
 mkdir -p $PREFIX/etc/tor && \
 echo -e "StrictNodes 0\nMaxCircuitDirtiness 60\nCircuitBuildTimeout 5\nLog notice stdout" > $PREFIX/etc/tor/torrc && \
