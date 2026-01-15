@@ -91,7 +91,7 @@ while true; do
 
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
-    echo -ne "${C}[*] Thiết lập mạch kết nối: Lỗi${NC}"
+    echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     
     percent=0
     while IFS= read -r line; do
