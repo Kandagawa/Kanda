@@ -22,7 +22,7 @@ show_progress() {
         printf "${W}"
         for ((j=0; j<empty; j++)); do printf "○"; done
         printf "${C}] ${Y}%d%%${NC}" "$i"
-        sleep 0.02
+        sleep 0.01
     done
 }
 
@@ -52,14 +52,12 @@ while true; do
 
     echo -e "\n${B}[*] Đang chuẩn bị dịch vụ...${NC}"
 
-    # --- BẮT ĐẦU TẢI DỮ LIỆU THỰC TẾ ---
-    show_progress 0 30
+    # Cài đặt thực tế
+    show_progress 0 40
     pkg update -y > /dev/null 2>&1
-    
-    show_progress 31 70
+    show_progress 41 85
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
-    
-    show_progress 71 100
+    show_progress 86 100
     mkdir -p $PREFIX/etc/tor
     echo -e "\n${G}[ DONE ] Đã tải xong dữ liệu.${NC}"
 
@@ -77,7 +75,7 @@ while true; do
     pkill tor; pkill privoxy; sleep 1
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-    # 4. Hiện log Boot và Kiểm tra lỗi 2 giây 0%
+    # 4. Hiện log Boot - Chỉ báo lỗi nếu đứng 0% quá 3 giây
     echo -e "${B}[*] Đang thiết lập mạch kết nối...${NC}"
     success=false
     percent=0
@@ -95,14 +93,9 @@ while true; do
         fi
         
         current_time=$(date +%s)
-        if [ $((current_time - start_time)) -ge 2 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Mã '${country_code^^}' sai hoặc không có server (0%% sau 2s).${NC}"
-            pkill tor; pkill privoxy
-            break
-        fi
-
-        if [ $((current_time - start_time)) -gt 25 ]; then
-            echo -e "\n${R}[ LỖI ] Mạch Tor không thể thiết lập (Timeout).${NC}"
+        # CHỈ BẮT LỖI NẾU ĐỨNG 0% QUÁ 3 GIÂY
+        if [ $((current_time - start_time)) -ge 3 ] && [ "$percent" -eq 0 ]; then
+            echo -e "\n${R}[ LỖI ] Mã '${country_code^^}' không tồn tại hoặc không có server (Đứng 0% quá 3s).${NC}"
             pkill tor; pkill privoxy
             break
         fi
