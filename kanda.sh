@@ -6,6 +6,7 @@ Y='\033[1;33m'
 B='\033[1;34m'
 C='\033[1;36m'
 W='\033[1;37m'
+R='\033[1;31m'
 NC='\033[0m'
 
 # --- HÀM THANH TIẾN TRÌNH DOTS ---
@@ -24,13 +25,33 @@ run_progress() {
 }
 
 clear
-echo -e "${C}>>> KHỞI TẠO CẤU HÌNH HỆ THỐNG <<<${NC}"
+echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 
-# --- CHỌN QUỐC GIA ---
-echo -e "${Y}[?] Nhập mã quốc gia muốn xoay (ví dụ: us, sg, jp, de...)${NC}"
-read -p "    Để trống nếu muốn xoay ngẫu nhiên: " country_code
+# --- VÒNG LẶP KIỂM TRA NHẬP MÃ QUỐC GIA ---
+while true; do
+    echo -e "\n${Y}[?] Nhập mã quốc gia (2 chữ cái, ví dụ: us, sg, jp...)${NC}"
+    echo -e "${Y}[?] Nhập 'all' để kết nối toàn thế giới.${NC}"
+    read -p "    Lựa chọn của bạn: " input
+    
+    # Chuyển về chữ thường để kiểm tra
+    input_lower=$(echo "$input" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$input_lower" == "all" ]]; then
+        country_code=""
+        echo -e "${G}>> Đã chọn: Toàn thế giới.${NC}"
+        break
+    elif [[ "$input_lower" =~ ^[a-z]{2}$ ]]; then
+        country_code="$input_lower"
+        echo -e "${G}>> Đã chọn quốc gia: ${country_code^^}${NC}"
+        break
+    else
+        echo -e "${R}[!] Lỗi: Mã quốc gia không hợp lệ. Vui lòng nhập đúng 2 chữ cái hoặc 'all'.${NC}"
+    fi
+done
 
-# 1. Tải dữ liệu
+echo -e "\n${B}[*] Bắt đầu quá trình tải và thiết lập...${NC}\n"
+
+# 1. Tải dữ liệu (Chỉ chạy sau khi đã nhập mã xong)
 run_progress 30 0
 pkg update -y > /dev/null 2>&1
 run_progress 80 31
@@ -39,20 +60,18 @@ run_progress 100 81
 mkdir -p $PREFIX/etc/tor
 echo -e "\n${G}[ DONE ] Cài đặt hoàn tất.${NC}"
 
-# 2. Cấu hình (Tích hợp chọn quốc gia)
+# 2. Cấu hình Torrc
 sec=30
 TORRC="$PREFIX/etc/tor/torrc"
 echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
 
 if [ ! -z "$country_code" ]; then
-    # Ép Tor chỉ sử dụng Exit Node của quốc gia đã chọn
     echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC
-    echo -e "${G}[ INFO ] Đã cấu hình chỉ xoay IP tại: ${Y}${country_code^^}${NC}"
 else
     echo -e "StrictNodes 0" >> $TORRC
-    echo -e "${G}[ INFO ] Đã cấu hình xoay IP ngẫu nhiên toàn thế giới.${NC}"
 fi
 
+# Cấu hình Privoxy
 sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
 sed -i '/forward-socks5t/d' $PREFIX/etc/privoxy/config
 echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
@@ -89,7 +108,11 @@ stdbuf -oL tor 2>/dev/null | while read -r line; do
         echo -e "${C}├────────────────────────────────────────────────┤${NC}"
         echo -e "${C}│${NC}  ${W}HOST:${NC} ${G}127.0.0.1${NC}                               ${C}│${NC}"
         echo -e "${C}│${NC}  ${W}PORT:${NC} ${G}8118${NC}                                    ${C}│${NC}"
-        [ ! -z "$country_code" ] && echo -e "${C}│${NC}  ${W}QUỐC GIA:${NC} ${Y}${country_code^^}${NC}                             ${C}│${NC}"
+        if [ ! -z "$country_code" ]; then
+            echo -e "${C}│${NC}  ${W}QUỐC GIA:${NC} ${Y}${country_code^^}${NC}                             ${C}│${NC}"
+        else
+            echo -e "${C}│${NC}  ${W}QUỐC GIA:${NC} ${Y}TOÀN THẾ GIỚI${NC}                     ${C}│${NC}"
+        fi
         echo -e "${C}└────────────────────────────────────────────────┘${NC}"
         break
     fi
