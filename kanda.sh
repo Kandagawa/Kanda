@@ -26,7 +26,11 @@ run_progress() {
 clear
 echo -e "${C}>>> KHỞI TẠO CẤU HÌNH HỆ THỐNG <<<${NC}"
 
-# 1. Tải dữ liệu (Giữ log)
+# --- CHỌN QUỐC GIA ---
+echo -e "${Y}[?] Nhập mã quốc gia muốn xoay (ví dụ: us, sg, jp, de...)${NC}"
+read -p "    Để trống nếu muốn xoay ngẫu nhiên: " country_code
+
+# 1. Tải dữ liệu
 run_progress 30 0
 pkg update -y > /dev/null 2>&1
 run_progress 80 31
@@ -35,18 +39,29 @@ run_progress 100 81
 mkdir -p $PREFIX/etc/tor
 echo -e "\n${G}[ DONE ] Cài đặt hoàn tất.${NC}"
 
-# 2. Cấu hình
+# 2. Cấu hình (Tích hợp chọn quốc gia)
 sec=30
-echo -e "StrictNodes 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nControlPort 9051\nCookieAuthentication 0\nLog notice stdout" > $PREFIX/etc/tor/torrc
+TORRC="$PREFIX/etc/tor/torrc"
+echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
+
+if [ ! -z "$country_code" ]; then
+    # Ép Tor chỉ sử dụng Exit Node của quốc gia đã chọn
+    echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC
+    echo -e "${G}[ INFO ] Đã cấu hình chỉ xoay IP tại: ${Y}${country_code^^}${NC}"
+else
+    echo -e "StrictNodes 0" >> $TORRC
+    echo -e "${G}[ INFO ] Đã cấu hình xoay IP ngẫu nhiên toàn thế giới.${NC}"
+fi
+
 sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
 sed -i '/forward-socks5t/d' $PREFIX/etc/privoxy/config
 echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
 
-# 3. Khởi động dịch vụ ngầm
+# 3. Khởi động dịch vụ
 pkill tor; pkill privoxy; sleep 1
 privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-# 4. Vòng lặp xoay IP (ẨN HOÀN TOÀN LOG)
+# 4. Vòng lặp xoay IP thầm lặng
 (
   while true; do
     sleep $sec
@@ -55,7 +70,7 @@ privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 &
   done
 ) &
 
-# 5. Thiết lập mạch và hiện Bảng Host:Port
+# 5. Thiết lập mạch và hiện Bảng
 echo -e "\n${G}>>> HỆ THỐNG ĐANG HOẠT ĐỘNG <<<${NC}"
 echo -e "${C}--------------------------------------------------${NC}"
 
@@ -63,21 +78,21 @@ stdbuf -oL tor 2>/dev/null | while read -r line; do
     if [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo $line | grep -oP "\d+%" | head -1)
         if [ ! -z "$percent" ]; then
-            printf "\r${B}[ TIẾN TRÌNH ]${NC} Thiết lập mạch kết nối: ${Y}%s${NC} " "$percent"
+            printf "\r${B}[ TIẾN TRÌNH ]${NC} Thiết lập mạch Tor: ${Y}%s${NC} " "$percent"
         fi
     fi
     
     if [[ "$line" == *"Bootstrapped 100%"* ]]; then
-        echo -ne "\r\033[K" # Xóa dòng tiến trình %
+        echo -ne "\r\033[K"
         echo -e "${C}┌────────────────────────────────────────────────┐${NC}"
         echo -e "${C}│${NC}  ${G}KẾT NỐI THÀNH CÔNG!${NC}                          ${C}│${NC}"
         echo -e "${C}├────────────────────────────────────────────────┤${NC}"
         echo -e "${C}│${NC}  ${W}HOST:${NC} ${G}127.0.0.1${NC}                               ${C}│${NC}"
         echo -e "${C}│${NC}  ${W}PORT:${NC} ${G}8118${NC}                                    ${C}│${NC}"
+        [ ! -z "$country_code" ] && echo -e "${C}│${NC}  ${W}QUỐC GIA:${NC} ${Y}${country_code^^}${NC}                             ${C}│${NC}"
         echo -e "${C}└────────────────────────────────────────────────┘${NC}"
         break
     fi
 done
 
-# Chặn mọi log sau khi hoàn tất
 wait > /dev/null 2>&1
