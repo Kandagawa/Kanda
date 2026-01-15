@@ -1,13 +1,15 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- TỰ ĐỘNG THÊM PHÍM TẮT KANDA VÀO HỆ THỐNG ---
+# --- CÀI ĐẶT HỆ THỐNG & GIAO DIỆN CHÀO MỪNG ---
 if ! grep -q "alias kanda=" ~/.bashrc; then
-    # Thay link GitHub của ní vào đây nếu cần, hiện tại dùng link gốc
+    # Tạo alias để gõ 'kanda' là chạy
     echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+    # Thêm dòng chào mừng có màu sắc tinh tế
+    echo 'echo -e "\n\033[1;32mĐể quay lại trang proxy nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
     source ~/.bashrc > /dev/null 2>&1
 fi
 
-# --- MÀU SẮC ---
+# --- MÀU SẮC TRONG SCRIPT ---
 G='\033[1;32m'
 Y='\033[1;33m'
 B='\033[1;34m'
