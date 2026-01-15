@@ -35,10 +35,11 @@ echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
 pkill tor; pkill privoxy; sleep 1
 clear
 
-# 4. Chạy Privoxy NGẦM HOÀN TOÀN (Fix lỗi chồng log)
+# 4. Chạy Privoxy NGẦM
 privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
 # 5. Vòng lặp xoay IP ngầm
+count=0
 (
   while true; do
     sleep $sec
@@ -46,21 +47,25 @@ privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 &
   done
 ) &
 
-# 6. Chạy Tor và LỌC LOG SIÊU SẠCH
-echo -e "${G}>>> HỆ THỐNG ĐÃ SẴN SÀNG - ĐANG THEO DÕI XOAY IP <<<${NC}"
+# 6. Chạy Tor và CẬP NHẬT LOG TẠI CHỖ (Rewrite Line)
+echo -e "${G}>>> HỆ THỐNG ĐANG HOẠT ĐỘNG <<<${NC}"
 echo -e "${C}--------------------------------------------------${NC}"
+# In một dòng trống để làm chỗ nhảy log
+echo -e "\n"
 
-# Dùng stdbuf để giải quyết việc delay log và lọc sạch rác
 stdbuf -oL tor 2>/dev/null | grep --line-buffered -E "Bootstrapped|Reloading config" | while read -r line; do
+    # Di chuyển con trỏ lên 1 dòng và xóa dòng đó để ghi đè
+    echo -ne "\033[1A\033[K" 
+    
     if [[ "$line" == *"Bootstrapped 100%"* ]]; then
-        echo -e "${G}[ OK ]${NC} Kết nối thành công! IP đã sẵn sàng."
+        echo -e "${G}[ TRẠNG THÁI ]${NC} IP SẴN SÀNG (Đã xoay: ${Y}${count}${NC})"
     elif [[ "$line" == *"Reloading config"* ]]; then
-        echo -e "${Y}[ ROTATE ]${NC} Đang tiến hành xoay IP mới (mỗi 30s)..."
+        ((count++))
+        echo -e "${Y}[ TRẠNG THÁI ]${NC} ĐANG XOAY MẠCH MỚI... (Lần: ${G}${count}${NC})"
     elif [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo $line | grep -oP "\d+%" | head -1)
-        # Chỉ in tiến trình nếu có %
         if [ ! -z "$percent" ]; then
-            echo -e "${B}[ PROGRESS ]${NC} Đang thiết lập mạch: $percent"
+            echo -e "${B}[ TIẾN TRÌNH ]${NC} Đang thiết lập mạch: ${Y}${percent}${NC}"
         fi
     fi
 done
