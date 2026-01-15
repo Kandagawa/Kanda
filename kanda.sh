@@ -51,8 +51,6 @@ while true; do
     done
 
     echo -e "\n${B}[*] Đang chuẩn bị dịch vụ...${NC}"
-
-    # Cài đặt thực tế
     show_progress 0 40
     pkg update -y > /dev/null 2>&1
     show_progress 41 85
@@ -75,39 +73,48 @@ while true; do
     pkill tor; pkill privoxy; sleep 1
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-    # 4. Hiện log Boot - Chỉ báo lỗi nếu đứng 0% quá 3 giây
+    # 4. Đọc log Tor và in thông số (Sửa lỗi không hiện Host/Port)
     echo -e "${B}[*] Đang thiết lập mạch kết nối...${NC}"
-    success=false
-    percent=0
     start_time=$(date +%s)
+    
+    # Dùng flag để thoát vòng lặp ngoài
+    finished=false
 
-    stdbuf -oL tor 2>/dev/null | while read -r line; do
+    while IFS= read -r line; do
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r\033[K${B}[ TIẾN TRÌNH ]${NC} Thiết lập mạch Tor: ${Y}${percent}%%${NC} "
             
+            # KHI ĐẠT 100%, IN LUÔN THÔNG SỐ Ở ĐÂY
             if [ "$percent" -eq 100 ]; then
-                success=true
+                echo -e "\n"
+                echo -e "${B}HOST:   ${G}127.0.0.1${NC}"
+                echo -e "${B}PORT:   ${G}8118${NC}"
+                if [ ! -z "$country_code" ]; then
+                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
+                else
+                    echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
+                fi
+                
+                # Khởi động xoay IP ngầm
+                ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) &
+                
+                finished=true
                 break
             fi
         fi
         
+        # Check 3s nếu đứng 0%
         current_time=$(date +%s)
-        # CHỈ BẮT LỖI NẾU ĐỨNG 0% QUÁ 3 GIÂY
         if [ $((current_time - start_time)) -ge 3 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Mã '${country_code^^}' không tồn tại hoặc không có server (Đứng 0% quá 3s).${NC}"
+            echo -e "\n${R}[ LỖI ] Mã '${country_code^^}' không khả dụng (0%% sau 3s).${NC}"
             pkill tor; pkill privoxy
             break
         fi
-    done
+    done < <(stdbuf -oL tor 2>/dev/null)
 
-    if [ "$success" = true ]; then
-        echo -e "\n" 
-        echo -e "${B}HOST:   ${G}127.0.0.1${NC}"
-        echo -e "${B}PORT:   ${G}8118${NC}"
-        [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
-        
-        ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) &
+    # Thoát vòng lặp chính khi đã thành công
+    if [ "$finished" = true ]; then
         break
     fi
 done
