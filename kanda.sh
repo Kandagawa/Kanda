@@ -62,38 +62,45 @@ while true; do
     render_bar 10
     pkg update -y > /dev/null 2>&1
     render_bar 40
-    pkg install tor -y > /dev/null 2>&1
-    render_bar 70
-    pkg install privoxy curl netcat-openbsd -y > /dev/null 2>&1
+    # Ép cài lại privoxy nếu thiếu
+    pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
 
+    # --- SỬA LỖI CONFIG PRIVOXY ---
+    CONF_DIR="$PREFIX/etc/privoxy"
+    CONF_FILE="$CONF_DIR/config"
+    mkdir -p $CONF_DIR
+    
+    # Nếu file không tồn tại, tạo file mới với nội dung cơ bản
+    if [ ! -f "$CONF_FILE" ]; then
+        echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    else
+        sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' "$CONF_FILE"
+    fi
+    sed -i '/forward-socks5t/d' "$CONF_FILE"
+    echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
+
+    # --- CẤU HÌNH TOR ---
     mkdir -p $PREFIX/etc/tor
     sec=30
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
-    sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
-    sed -i '/forward-socks5t/d' $PREFIX/etc/privoxy/config
-    echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
+    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
-    privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
-
-    # --- THIẾT LẬP MẠCH (CHỈ GẮT LÚC 0%) ---
+    # --- THIẾT LẬP MẠCH ---
     echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
-    
     start_time=$(date +%s)
     percent=0
     conn_error=false
 
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
-        
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
-
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
                 echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
@@ -105,7 +112,6 @@ while true; do
             fi
         fi
         
-        # --- LOGIC MỚI: CHỈ CHECK 0% TRONG 3 GIÂY ĐẦU ---
         current_time=$(date +%s)
         if [ "$percent" -eq 0 ] && [ $((current_time - start_time)) -ge 3 ]; then
             echo -e "\n${R}[ LỖI ] Không tìm thấy mã như vậy!${NC}"
@@ -116,7 +122,6 @@ while true; do
     done < <(stdbuf -oL tor 2>/dev/null)
 
     if [ "$conn_error" = true ]; then continue; fi
-
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
     echo -e "\n${Y}--- Đang quay lại bước chọn quốc gia ---${NC}"
