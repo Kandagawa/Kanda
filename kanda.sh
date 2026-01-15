@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- Đoạn này giúp tự cài lệnh 'kanda' vào máy ---
+# --- Tự động cài lệnh kanda vào hệ thống nếu chưa có ---
 if [ ! -f "$PREFIX/bin/kanda" ]; then
-    cp $0 $PREFIX/bin/kanda
+    curl -Ls is.gd/kandaprx -o $PREFIX/bin/kanda
     chmod +x $PREFIX/bin/kanda
-    echo "alias kanda='kanda'" >> ~/.bashrc
+    grep -q "alias kanda" ~/.bashrc || echo "alias kanda='kanda'" >> ~/.bashrc
 fi
 
 # --- 100% MÃ NGUỒN CỦA NÍ ---
