@@ -84,7 +84,7 @@ while true; do
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
 
     mkdir -p $PREFIX/etc/tor
-    sec=30
+    sec=60
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
