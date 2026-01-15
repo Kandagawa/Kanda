@@ -48,7 +48,7 @@ while true; do
     stop_flag=false
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, us... hoặc all)${NC}"
-        echo -e "\n${R}(Hãy ấn [CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có quốc gia đó)${NC}"
+        echo -e "\n${R}[CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
