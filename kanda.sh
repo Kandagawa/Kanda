@@ -21,18 +21,14 @@ render_bar() {
     printf "${B}] ${Y}%d%%${NC}" "$percent"
 }
 
+# --- HÀM DỌN DẸP (ĐÃ FIX ẨN KILL) ---
 cleanup() {
-    # Chặn thông báo của shell về việc job bị kill
-    {
-        pkill -9 tor
-        pkill -9 privoxy
-        pkill -f "SIGNAL NEWNYM"
-        rm -rf $PREFIX/var/lib/tor/*
-    } > /dev/null 2>&1
+    # Diệt tiến trình và đẩy mọi thông báo lỗi/trạng thái vào hư vô
+    pkill -9 tor > /dev/null 2>&1
+    pkill -9 privoxy > /dev/null 2>&1
+    pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
+    rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 }
-
-# Tắt thông báo "Killed" của bash đối với các tiến trình chạy ngầm
-set +m
 
 stop_flag=false
 trap 'stop_flag=true' SIGINT
@@ -90,7 +86,7 @@ while true; do
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
-    # Chạy privoxy ngầm và giấu lỗi
+    # Chạy privoxy im lặng
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
     echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
@@ -98,6 +94,7 @@ while true; do
     percent=0
     conn_error=false
 
+    # Đọc log Tor mượt mà trở lại
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -110,7 +107,6 @@ while true; do
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # Chạy xoay IP ngầm
                 ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) > /dev/null 2>&1 &
                 break
             fi
