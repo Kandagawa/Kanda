@@ -40,7 +40,7 @@ while true; do
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, us... hoặc all)${NC}"
         # Thụt xuống 1 dòng theo ý ní
-        echo -e "\n${R}(Hãy ấn [CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có quốc gia có)${NC}"
+        echo -e "\n${R}(Hãy ấn [CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có quốc gia đó)${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
