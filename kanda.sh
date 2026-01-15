@@ -22,11 +22,17 @@ render_bar() {
 }
 
 cleanup() {
-    pkill -9 tor > /dev/null 2>&1
-    pkill -9 privoxy > /dev/null 2>&1
-    pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
-    rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
+    # Chặn thông báo của shell về việc job bị kill
+    {
+        pkill -9 tor
+        pkill -9 privoxy
+        pkill -f "SIGNAL NEWNYM"
+        rm -rf $PREFIX/var/lib/tor/*
+    } > /dev/null 2>&1
 }
+
+# Tắt thông báo "Killed" của bash đối với các tiến trình chạy ngầm
+set +m
 
 stop_flag=false
 trap 'stop_flag=true' SIGINT
@@ -62,17 +68,14 @@ while true; do
     render_bar 10
     pkg update -y > /dev/null 2>&1
     render_bar 40
-    # Ép cài lại privoxy nếu thiếu
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
 
-    # --- SỬA LỖI CONFIG PRIVOXY ---
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
     
-    # Nếu file không tồn tại, tạo file mới với nội dung cơ bản
     if [ ! -f "$CONF_FILE" ]; then
         echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
     else
@@ -81,16 +84,15 @@ while true; do
     sed -i '/forward-socks5t/d' "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
 
-    # --- CẤU HÌNH TOR ---
     mkdir -p $PREFIX/etc/tor
     sec=30
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
+    # Chạy privoxy ngầm và giấu lỗi
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
-    # --- THIẾT LẬP MẠCH ---
     echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
     start_time=$(date +%s)
     percent=0
@@ -107,7 +109,9 @@ while true; do
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
-                ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) &
+                
+                # Chạy xoay IP ngầm
+                ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) > /dev/null 2>&1 &
                 break
             fi
         fi
