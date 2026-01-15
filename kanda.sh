@@ -21,9 +21,7 @@ render_bar() {
     printf "${B}] ${Y}%d%%${NC}" "$percent"
 }
 
-# --- HÀM DỌN DẸP (ĐÃ FIX ẨN KILL) ---
 cleanup() {
-    # Diệt tiến trình và đẩy mọi thông báo lỗi/trạng thái vào hư vô
     pkill -9 tor > /dev/null 2>&1
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
@@ -71,7 +69,6 @@ while true; do
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    
     if [ ! -f "$CONF_FILE" ]; then
         echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
     else
@@ -86,34 +83,50 @@ while true; do
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
-    # Chạy privoxy im lặng
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
     echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
+    
     start_time=$(date +%s)
+    last_update=$(date +%s)
+    last_percent=0
     percent=0
     conn_error=false
 
-    # Đọc log Tor mượt mà trở lại
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
+            
+            if [ "$percent" -gt "$last_percent" ]; then
+                last_percent=$percent
+                last_update=$(date +%s)
+            fi
+
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
                 echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
-                
                 ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) > /dev/null 2>&1 &
                 break
             fi
         fi
         
         current_time=$(date +%s)
+        
+        # Kiểm tra kẹt 0% (3s)
         if [ "$percent" -eq 0 ] && [ $((current_time - start_time)) -ge 3 ]; then
+            echo -e "\n${R}[ LỖI ] Không tìm thấy mã như vậy!${NC}"
+            cleanup
+            conn_error=true
+            break
+        fi
+
+        # Kiểm tra kẹt > 0% (10s) - Vẫn báo cùng 1 lỗi theo ý ní
+        if [ "$percent" -gt 0 ] && [ $((current_time - last_update)) -ge 10 ]; then
             echo -e "\n${R}[ LỖI ] Không tìm thấy mã như vậy!${NC}"
             cleanup
             conn_error=true
