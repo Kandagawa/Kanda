@@ -50,14 +50,26 @@ while true; do
         fi
     done
 
-    echo -e "\n${B}[*] Đang chuẩn bị dịch vụ...${NC}"
-    show_progress 0 40
+    # --- BƯỚC MỚI: DỌN DẸP HỆ THỐNG ĐỂ FIX LỖI 0% ---
+    echo -e "${B}[*] Đang dọn dẹp cấu hình cũ...${NC}"
+    pkill -9 tor > /dev/null 2>&1
+    pkill -9 privoxy > /dev/null 2>&1
+    pkg uninstall tor privoxy -y > /dev/null 2>&1
+    rm -rf $PREFIX/etc/tor $PREFIX/var/lib/tor > /dev/null 2>&1
+    sleep 1
+
+    echo -e "${B}[*] Đang chuẩn bị dịch vụ...${NC}"
+    
+    # Cài đặt lại từ đầu để đảm bảo mạch chạy
+    show_progress 0 30
     pkg update -y > /dev/null 2>&1
-    show_progress 41 85
+    
+    show_progress 31 80
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
-    show_progress 86 100
+    
+    show_progress 81 100
     mkdir -p $PREFIX/etc/tor
-    echo -e "\n${G}[ DONE ] Đã tải xong dữ liệu.${NC}"
+    echo -e "\n${G}[ DONE ] Đã cài đặt mới Tor & Privoxy.${NC}"
 
     # 2. Cấu hình
     sec=30
@@ -70,22 +82,21 @@ while true; do
     echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
 
     # 3. Chạy dịch vụ
-    pkill tor; pkill privoxy; sleep 1
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
+    sleep 1
 
-    # 4. Đọc log Tor và in thông số (Sửa lỗi không hiện Host/Port)
+    # 4. Đọc log Tor và in thông số
     echo -e "${B}[*] Đang thiết lập mạch kết nối...${NC}"
     start_time=$(date +%s)
-    
-    # Dùng flag để thoát vòng lặp ngoài
     finished=false
+    percent=0
 
-    while IFS= read -r line; do
+    # Khởi chạy tor và xử lý log
+    stdbuf -oL tor 2>/dev/null | while read -r line; do
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r\033[K${B}[ TIẾN TRÌNH ]${NC} Thiết lập mạch Tor: ${Y}${percent}%%${NC} "
             
-            # KHI ĐẠT 100%, IN LUÔN THÔNG SỐ Ở ĐÂY
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n"
                 echo -e "${B}HOST:   ${G}127.0.0.1${NC}"
@@ -107,14 +118,14 @@ while true; do
         # Check 3s nếu đứng 0%
         current_time=$(date +%s)
         if [ $((current_time - start_time)) -ge 3 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Mã '${country_code^^}' không khả dụng (0%% sau 3s).${NC}"
-            pkill tor; pkill privoxy
+            echo -e "\n${R}[ LỖI ] Mạch đứng 0%% sau 3s. Đang tiến hành cài lại...${NC}"
             break
         fi
-    done < <(stdbuf -oL tor 2>/dev/null)
+    done
 
-    # Thoát vòng lặp chính khi đã thành công
-    if [ "$finished" = true ]; then
+    # Nếu hoàn thành 100% thì thoát vòng lặp nhập mã
+    # Nếu bị đứng 0%, vòng lặp sẽ tự động quay lại bước "Dọn dẹp hệ thống" ở trên
+    if [[ $(pgrep -x tor) && "$percent" -eq 100 ]]; then
         break
     fi
 done
