@@ -38,8 +38,8 @@ echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 while true; do
     stop_flag=false
     while true; do
-        echo -e "\n${Y}[?] Nhập mã quốc gia (ví dụ: us, sg, jp hoặc all)${NC}"
-        echo -e "${R}    (Gợi ý: Nếu bị treo hãy nhấn CTRL + C để quay lại)${NC}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia hoặc all)${NC}"
+        echo -e "${R}    (Gợi ý: Nếu bị treo vì ấn sai hãy ấn [CTRL + C] để quay lại)${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
