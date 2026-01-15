@@ -4,10 +4,9 @@
 G='\033[1;32m'
 Y='\033[1;33m'
 B='\033[1;34m'
-C='\033[1;36m'
+C='\033[1;36m' # Màu Xanh lơ (Cyan) - Thay cho màu tím
 W='\033[1;37m'
 R='\033[1;31m'
-P='\033[1;35m'
 NC='\033[0m'
 
 # --- HÀM THANH TIẾN TRÌNH ---
@@ -18,26 +17,36 @@ show_progress() {
     for ((i=current; i<=target; i++)); do
         local filled=$((i*w/100))
         local empty=$((w-filled))
-        printf "\r\033[K${B}[*] Đang tải dữ liệu... ${C}[${G}"
+        printf "\r\033[K${C}[*] Đang tải dữ liệu... ${B}[${G}"
         for ((j=0; j<filled; j++)); do printf "●"; done
         printf "${W}"
         for ((j=0; j<empty; j++)); do printf "○"; done
-        printf "${C}] ${Y}%d%%${NC}" "$i"
+        printf "${B}] ${Y}%d%%${NC}" "$i"
         sleep 0.005
     done
 }
 
-# --- DỌN DẸP HỆ THỐNG ---
-pkill -9 tor > /dev/null 2>&1
-pkill -9 privoxy > /dev/null 2>&1
-pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
-rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
+# --- HÀM DỌN DẸP ---
+cleanup() {
+    pkill -9 tor > /dev/null 2>&1
+    pkill -9 privoxy > /dev/null 2>&1
+    pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
+    rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
+}
 
+# --- XỬ LÝ CTRL+C ĐỂ QUAY LẠI MENU ---
+stop_flag=false
+trap 'stop_flag=true' SIGINT
+
+cleanup
 clear
 echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 
 # --- VÒNG LẶP CHÍNH ---
 while true; do
+    stop_flag=false
+    
+    # Menu nhập mã quốc gia
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (ví dụ: us, sg, jp hoặc all)${NC}"
         printf "    Lựa chọn: "
@@ -57,17 +66,16 @@ while true; do
         fi
     done
 
-    pkill -9 tor > /dev/null 2>&1
-    pkill -9 privoxy > /dev/null 2>&1
+    cleanup
     sleep 1
 
-    echo -e "\n${B}[*] Khởi tạo dịch vụ...${NC}"
+    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
     show_progress 0 100
     pkg update -y > /dev/null 2>&1
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     mkdir -p $PREFIX/etc/tor
 
-    # Cấu hình dịch vụ
+    # Cấu hình
     sec=30
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
@@ -79,48 +87,44 @@ while true; do
 
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-    # Thiết lập mạch kết nối
-    echo -ne "${B}[*] Thiết lập mạch kết nối... 0%${NC}"
+    # Thiết lập mạch kết nối (Màu Xanh lơ - Cyan)
+    echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
     start_time=$(date +%s)
-    finished=false
     percent=0
 
+    # Chạy tor và đọc log
     while IFS= read -r line; do
+        if [[ "$stop_flag" == "true" ]]; then break; fi
+        
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
-            printf "\r${B}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
+            printf "\r${C}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
             
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
-                echo -e "${B}HOST:   ${G}127.0.0.1${NC}"
-                echo -e "${B}PORT:   ${G}8118${NC}"
-                if [ ! -z "$country_code" ]; then
-                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
-                else
-                    echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
-                fi
-                echo -e "\n${W}* Nhấn CTRL+C để đổi quốc gia${NC}"
+                echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
+                echo -e "${B}PORT:   ${W}8118${NC}"
+                [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
+                echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # Khởi động xoay IP ngầm
-                pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
+                # Xoay IP ngầm
                 ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) &
-                
-                finished=true
                 break
             fi
         fi
         
         current_time=$(date +%s)
         if [ $((current_time - start_time)) -ge 5 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Kết nối thất bại (0%% sau 5s). Vui lòng thử lại!${NC}"
-            pkill -9 tor; pkill -9 privoxy
+            echo -e "\n${R}[ LỖI ] Kết nối chậm. Đang quay lại menu...${NC}"
+            sleep 2
             break
         fi
     done < <(stdbuf -oL tor 2>/dev/null)
 
-    if [ "$finished" = true ]; then
-        break
-    fi
+    # Nếu nhấn CTRL+C trong khi đang chờ, vòng lặp sẽ bắt đầu lại từ đầu
+    while [[ "$stop_flag" == "false" ]]; do
+        sleep 1
+    done
+    cleanup
+    echo -e "\n${Y}--- Đang quay lại bước chọn quốc gia ---${NC}"
 done
-
-wait > /dev/null 2>&1
