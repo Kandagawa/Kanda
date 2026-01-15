@@ -1,15 +1,11 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- CÀI ĐẶT HỆ THỐNG & GIAO DIỆN CHÀO MỪNG ---
 if ! grep -q "alias kanda=" ~/.bashrc; then
-    # Tạo alias để gõ 'kanda' là chạy
     echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
-    # Thêm dòng chào mừng có màu sắc tinh tế
     echo 'echo -e "\n\033[1;32mĐể quay lại trang proxy nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
     source ~/.bashrc > /dev/null 2>&1
 fi
 
-# --- MÀU SẮC TRONG SCRIPT ---
 G='\033[1;32m'
 Y='\033[1;33m'
 B='\033[1;34m'
@@ -47,7 +43,7 @@ echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 while true; do
     stop_flag=false
     while true; do
-        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, us... hoặc all)${NC}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
         echo -e "\n${R}[CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
