@@ -9,7 +9,6 @@ W='\033[1;37m'
 R='\033[1;31m'
 NC='\033[0m'
 
-# --- HÀM THANH TIẾN TRÌNH THỰC TẾ ---
 render_bar() {
     local percent=$1
     local w=25
@@ -36,10 +35,8 @@ cleanup
 clear
 echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 
-# --- VÒNG LẶP CHÍNH ---
 while true; do
     stop_flag=false
-    # Menu nhập mã quốc gia
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (ví dụ: us, sg, jp hoặc all)${NC}"
         printf "    Lựa chọn: "
@@ -61,7 +58,6 @@ while true; do
     cleanup
     sleep 1
 
-    # --- TIẾN TRÌNH TẢI ---
     echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
     render_bar 10
     pkg update -y > /dev/null 2>&1
@@ -84,20 +80,20 @@ while true; do
 
     privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-    # --- THIẾT LẬP MẠCH KẾT NỐI ---
+    # --- THIẾT LẬP MẠCH (CHỈ GẮT LÚC 0%) ---
     echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
+    
     start_time=$(date +%s)
     percent=0
     conn_error=false
 
-    # Đọc log từ Tor
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
-            
+
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
                 echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
@@ -109,26 +105,19 @@ while true; do
             fi
         fi
         
-        # --- XỬ LÝ LỖI 0% QUÁ 5 GIÂY ---
+        # --- LOGIC MỚI: CHỈ CHECK 0% TRONG 3 GIÂY ĐẦU ---
         current_time=$(date +%s)
-        if [ $((current_time - start_time)) -ge 5 ] && [ "$percent" -eq 0 ]; then
-            echo -e "\n${R}[ LỖI ] Kết nối thất bại (0%% quá 5s).${NC}"
-            echo -e "${Y}>>> Đang quay lại menu chọn quốc gia...${NC}"
+        if [ "$percent" -eq 0 ] && [ $((current_time - start_time)) -ge 3 ]; then
+            echo -e "\n${R}[ LỖI ] Không tìm thấy mã như vậy!${NC}"
             cleanup
             conn_error=true
             break
         fi
     done < <(stdbuf -oL tor 2>/dev/null)
 
-    # Nếu có lỗi kết nối, nhảy về đầu vòng lặp while true luôn
-    if [ "$conn_error" = true ]; then
-        continue
-    fi
+    if [ "$conn_error" = true ]; then continue; fi
 
-    # Chờ nhấn CTRL+C để đổi quốc gia
-    while [[ "$stop_flag" == "false" ]]; do
-        sleep 1
-    done
+    while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
     echo -e "\n${Y}--- Đang quay lại bước chọn quốc gia ---${NC}"
 done
