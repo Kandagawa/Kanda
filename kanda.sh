@@ -39,6 +39,7 @@ while true; do
     stop_flag=false
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (ví dụ: us, sg, jp hoặc all)${NC}"
+        echo -e "${R}    (Gợi ý: Nếu bị treo hãy nhấn CTRL + C để quay lại)${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -87,23 +88,13 @@ while true; do
 
     echo -ne "${C}[*] Thiết lập mạch kết nối... 0%${NC}"
     
-    start_time=$(date +%s)
-    last_update=$(date +%s)
-    last_percent=0
     percent=0
-    conn_error=false
-
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối... ${Y}${percent}%%${NC}"
             
-            if [ "$percent" -gt "$last_percent" ]; then
-                last_percent=$percent
-                last_update=$(date +%s)
-            fi
-
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
                 echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
@@ -114,27 +105,9 @@ while true; do
                 break
             fi
         fi
-        
-        current_time=$(date +%s)
-        
-        # Kiểm tra kẹt 0% (3s)
-        if [ "$percent" -eq 0 ] && [ $((current_time - start_time)) -ge 3 ]; then
-            echo -e "\n${R}[ LỖI ] Không tìm thấy mã như vậy!${NC}"
-            cleanup
-            conn_error=true
-            break
-        fi
-
-        # Kiểm tra kẹt > 0% (10s) - Vẫn báo cùng 1 lỗi theo ý ní
-        if [ "$percent" -gt 0 ] && [ $((current_time - last_update)) -ge 10 ]; then
-            echo -e "\n${R}[ LỖI ] Không tìm thấy mã như vậy!${NC}"
-            cleanup
-            conn_error=true
-            break
-        fi
     done < <(stdbuf -oL tor 2>/dev/null)
 
-    if [ "$conn_error" = true ]; then continue; fi
+    # Đợi người dùng nhấn CTRL+C để thoát mạch hiện tại
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
     echo -e "\n${Y}--- Đang quay lại bước chọn quốc gia ---${NC}"
