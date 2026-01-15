@@ -16,17 +16,19 @@ progress() {
 clear
 echo -e "${Y}--- ĐANG KHỞI TẠO HỆ THỐNG ---${NC}"
 
-# 1. Cài đặt thầm lặng
+# 1. Cài đặt thầm lặng (thêm netcat-openbsd để gửi lệnh xoay IP)
 (
     pkg update -y > /dev/null 2>&1 && progress 30
-    pkg install tor privoxy curl -y > /dev/null 2>&1 && progress 70
+    pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1 && progress 70
     mkdir -p $PREFIX/etc/tor && progress 100
     echo -e "\n"
 )
 
-# 2. Cấu hình
+# 2. Cấu hình ép xoay gắt
 sec=30
-echo -e "StrictNodes 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 5\nLog notice stdout" > $PREFIX/etc/tor/torrc
+# Thêm ControlPort để có thể ép xoay IP ngay lập tức bằng lệnh
+echo -e "StrictNodes 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLearnCircuitBuildTimeout 0\nControlPort 9051\nCookieAuthentication 0\nLog notice stdout" > $PREFIX/etc/tor/torrc
+
 sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' $PREFIX/etc/privoxy/config
 sed -i '/forward-socks5t/d' $PREFIX/etc/privoxy/config
 echo "forward-socks5t / 127.0.0.1:9050 ." >> $PREFIX/etc/privoxy/config
@@ -38,30 +40,31 @@ clear
 # 4. Chạy Privoxy NGẦM
 privoxy --no-daemon $PREFIX/etc/privoxy/config > /dev/null 2>&1 & 
 
-# 5. Vòng lặp xoay IP ngầm
+# 5. Vòng lặp ÉP XOAY NGAY LẬP TỨC
 count=0
 (
   while true; do
     sleep $sec
+    # Gửi lệnh NEWNYM tới ControlPort của Tor để ép đổi IP ngay lập tức
+    echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
+    # Vẫn gửi thêm HUP để Tor cập nhật trạng thái log ra màn hình cho ní xem
     pkill -HUP tor
   done
 ) &
 
-# 6. Chạy Tor và CẬP NHẬT LOG TẠI CHỖ (Rewrite Line)
-echo -e "${G}>>> HỆ THỐNG ĐANG HOẠT ĐỘNG <<<${NC}"
+# 6. Chạy Tor và CẬP NHẬT LOG TẠI CHỖ
+echo -e "${G}>>> HỆ THỐNG ĐANG HOẠT ĐỘNG (ÉP XOAY MỖI ${sec}S) <<<${NC}"
 echo -e "${C}--------------------------------------------------${NC}"
-# In một dòng trống để làm chỗ nhảy log
 echo -e "\n"
 
 stdbuf -oL tor 2>/dev/null | grep --line-buffered -E "Bootstrapped|Reloading config" | while read -r line; do
-    # Di chuyển con trỏ lên 1 dòng và xóa dòng đó để ghi đè
     echo -ne "\033[1A\033[K" 
     
     if [[ "$line" == *"Bootstrapped 100%"* ]]; then
         echo -e "${G}[ TRẠNG THÁI ]${NC} IP SẴN SÀNG (Đã xoay: ${Y}${count}${NC})"
     elif [[ "$line" == *"Reloading config"* ]]; then
         ((count++))
-        echo -e "${Y}[ TRẠNG THÁI ]${NC} ĐANG XOAY MẠCH MỚI... (Lần: ${G}${count}${NC})"
+        echo -e "${Y}[ TRẠNG THÁI ]${NC} ĐANG ÉP XOAY IP MỚI... (Lần: ${G}${count}${NC})"
     elif [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo $line | grep -oP "\d+%" | head -1)
         if [ ! -z "$percent" ]; then
