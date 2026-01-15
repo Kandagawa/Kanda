@@ -38,8 +38,9 @@ echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
 while true; do
     stop_flag=false
     while true; do
-        echo -e "\n${Y}[?] Nhập mã quốc gia hoặc all)${NC}"
-        echo -e "${R}    (Gợi ý: Nếu bị treo vì ấn sai hãy ấn [CTRL + C] để quay lại)${NC}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia (hoặc all)${NC}"
+        # Thụt xuống 1 dòng theo ý ní
+        echo -e "\n${R}    (Nếu bị treo vì ấn sai mã hãy ấn [CTRL + C] để quay lại)${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -97,7 +98,8 @@ while true; do
             
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
-                echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
+                # Cụm Host/Port/Region thụt xuống 1 dòng
+                echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
@@ -107,8 +109,7 @@ while true; do
         fi
     done < <(stdbuf -oL tor 2>/dev/null)
 
-    # Đợi người dùng nhấn CTRL+C để thoát mạch hiện tại
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
-    echo -e "\n${Y}--- Đang quay lại bước chọn quốc gia ---${NC}"
+    # Đã bỏ log quay lại bước chọn quốc gia ở đây
 done
