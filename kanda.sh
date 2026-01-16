@@ -1,7 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-rotate_count=0
-
 init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
@@ -124,15 +122,14 @@ run_tor() {
             percent=$(echo "$line" | grep -oP "\d+%" | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
-                rotate_count=0
                 echo -e "\n\n${G}[THÀNH CÔNG] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
-                echo -ne "${B}XOAY:   ${Y}${minute_input} PHÚT ${W}(Đã xoay: ${G}${rotate_count}${W})${NC}"
+                echo -e "${B}XOAY:   ${Y}${minute_input} PHÚT${NC}"
                 if [ -n "$country_code" ]; then
-                    echo -e "\n${B}REGION: ${Y}${country_code^^}${NC}"
+                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                 else
-                    echo -e "\n${B}REGION: ${Y}WORLDWIDE${NC}"
+                    echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 fi
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 auto_rotate > /dev/null 2>&1 &
@@ -145,8 +142,6 @@ run_tor() {
 auto_rotate() {
     while true; do
         sleep $sec
-        ((rotate_count++))
-        printf "\033[4A\r${B}XOAY:   ${Y}${minute_input} PHÚT ${W}(Đã xoay: ${G}${rotate_count}${W})${NC}\033[4B\r"
         (
             pkill -9 tor
             rm -f $PREFIX/var/lib/tor/state
