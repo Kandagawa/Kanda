@@ -84,11 +84,9 @@ while true; do
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
 
     mkdir -p $PREFIX/etc/tor
-    sec=30
+    sec=60
     TORRC="$PREFIX/etc/tor/torrc"
-    
-    # Sửa đổi: Thêm NewCircuitPeriod và CircuitBuildTimeout để hỗ trợ 'all' tốt hơn
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nNewCircuitPeriod 15\nCircuitBuildTimeout 15\nLog notice stdout" > $TORRC
+    echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
@@ -96,7 +94,6 @@ while true; do
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     
     percent=0
-    # Sửa đổi: Thêm -f "$TORRC" để Tor luôn đọc đúng file cấu hình mới nhất
     while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -110,12 +107,12 @@ while true; do
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # Sửa đổi quan trọng: Bỏ pkill -HUP tor để tránh làm treo mạch, chỉ dùng SIGNAL NEWNYM
-                ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; done ) > /dev/null 2>&1 &
+                # Sửa đổi: Vòng lặp xoay IP dùng pkill -9 tor để làm sạch kết nối sau 60s
+                ( while true; do sleep $sec; pkill -9 tor; done ) > /dev/null 2>&1 &
                 break
             fi
         fi
-    done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
+    done < <(stdbuf -oL tor 2>/dev/null)
 
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
