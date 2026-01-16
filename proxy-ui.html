@@ -1,5 +1,5 @@
 <style>
-    .container { padding: 40px 20px; text-align: center; font-family: 'Segoe UI', sans-serif; background: #121212; color: white; border-radius: 16px; }
+    .container { padding: 40px 20px; text-align: center; font-family: sans-serif; background: #121212; color: white; border-radius: 16px; }
     h3 { font-size: 14px; color: rgba(255,255,255,0.5); margin: 0 0 35px 0; text-transform: uppercase; letter-spacing: 2.5px; }
     .switch { position: relative; display: inline-block; width: 100px; height: 50px; }
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -26,31 +26,3 @@
     <div id="status">○ DISCONNECTED</div>
     <div class="footer">KANDA</div>
 </div>
-
-<script>
-    const toggle = document.getElementById('proxyToggle');
-    const statusText = document.getElementById('status');
-
-    function updateStatusText(enabled) {
-        if (enabled) {
-            statusText.innerText = "● CONNECTED";
-            statusText.style.color = "#03dac6";
-        } else {
-            statusText.innerText = "○ DISCONNECTED";
-            statusText.style.color = "#cf6679";
-        }
-    }
-
-    toggle.addEventListener('change', () => {
-        const isEnabled = toggle.checked;
-        updateStatusText(isEnabled);
-        window.parent.postMessage({ action: "setProxy", enabled: isEnabled }, "*");
-    });
-
-    window.addEventListener("message", (event) => {
-        if (event.data.action === "syncUI") {
-            toggle.checked = event.data.enabled;
-            updateStatusText(event.data.enabled);
-        }
-    });
-</script>
