@@ -101,12 +101,24 @@ while true; do
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             
             if [ "$percent" -eq 100 ]; then
-                echo -e "\n\n${G}[ THÀNH CÔNG ] Kết nối đã sẵn sàng!${NC}"
+                echo -e "\n\n${G}[THÀNH CÔNG] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
-                ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) > /dev/null 2>&1 &
+                
+                # --- PHẦN XOAY IP ĐÃ SỬA ---
+                ( 
+                    while true; do 
+                        sleep $sec
+                        pkill -9 tor > /dev/null 2>&1
+                        rm -rf $PREFIX/var/lib/tor/state > /dev/null 2>&1
+                        tor -f $PREFIX/etc/tor/torrc > /dev/null 2>&1 &
+                        sleep 5
+                        echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
+                    done 
+                ) > /dev/null 2>&1 &
+                # ---------------------------
                 break
             fi
         fi
