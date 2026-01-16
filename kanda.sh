@@ -1,6 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Thiết lập Alias
 if ! grep -q "alias kanda=" ~/.bashrc; then
     echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
     echo 'echo -e "\n\033[1;32mĐể quay lại trang proxy nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
@@ -43,9 +42,9 @@ echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
 
 while true; do
     stop_flag=false
-    # Bước 1: Chọn quốc gia
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
+        echo -e "${R}[CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -62,7 +61,6 @@ while true; do
         fi
     done
 
-    # Bước 2: Chọn thời gian xoay (1-9 phút)
     while true; do
         echo -e "\n${Y}[?] Nhập thời gian xoay IP (từ 1 đến 9 phút)${NC}"
         printf "    Số phút: "
@@ -87,23 +85,27 @@ while true; do
     render_bar 100
     echo -e "\n"
 
-    # Cấu hình Privoxy
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    if [ ! -f "$CONF_FILE" ]; then
+        echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    else
+        sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' "$CONF_FILE"
+    fi
+    sed -i '/forward-socks5t/d' "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
-    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
-    # Cấu hình Tor
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
+    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
+
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     
-    # Khởi chạy Tor
+    percent=0
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -118,11 +120,9 @@ while true; do
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # Vòng lặp xoay IP NGẦM (Đã fix lỗi dơ màn hình)
                 ( 
                     while true; do 
                         sleep $sec
-                        # Bọc trong ngoặc nhọn và đẩy ra null để giấu chữ "Killed"
                         {
                             pkill -9 tor
                             rm -f $PREFIX/var/lib/tor/state
