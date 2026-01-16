@@ -107,16 +107,7 @@ while true; do
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                ( 
-                    while true; do 
-                        sleep $sec
-                        pkill -9 tor > /dev/null 2>&1
-                        rm -rf $PREFIX/var/lib/tor/state > /dev/null 2>&1
-                        tor -f $PREFIX/etc/tor/torrc > /dev/null 2>&1 &
-                        sleep 2
-                        echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
-                    done 
-                ) > /dev/null 2>&1 &
+                ( while true; do sleep $sec; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1; pkill -HUP tor; done ) > /dev/null 2>&1 &
                 break
             fi
         fi
