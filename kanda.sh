@@ -39,13 +39,13 @@ trap 'stop_flag=true' SIGINT
 
 cleanup
 clear
-echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA (60S) <<<${NC}"
+echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
 
 while true; do
     stop_flag=false
+    # Bước 1: Chọn quốc gia
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -62,6 +62,20 @@ while true; do
         fi
     done
 
+    # Bước 2: Chọn thời gian xoay (1-9 phút)
+    while true; do
+        echo -e "\n${Y}[?] Nhập thời gian xoay IP (từ 1 đến 9 phút)${NC}"
+        printf "    Số phút: "
+        read minute_input </dev/tty
+        if [[ "$minute_input" =~ ^[1-9]$ ]]; then
+            sec=$((minute_input * 60))
+            echo -e "${G}>> IP sẽ xoay sau mỗi ${minute_input} phút.${NC}"
+            break
+        else
+            echo -e "${R}[!] LỖI: Chỉ nhập 1 chữ số từ 1 đến 9!${NC}"
+        fi
+    done
+
     cleanup
     sleep 1
 
@@ -73,29 +87,23 @@ while true; do
     render_bar 100
     echo -e "\n"
 
+    # Cấu hình Privoxy
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    if [ ! -f "$CONF_FILE" ]; then
-        echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
-    else
-        sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' "$CONF_FILE"
-    fi
-    sed -i '/forward-socks5t/d' "$CONF_FILE"
+    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
+    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
 
+    # Cấu hình Tor
     mkdir -p $PREFIX/etc/tor
-    sec=60
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > $TORRC
     [ ! -z "$country_code" ] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> $TORRC || echo -e "StrictNodes 0" >> $TORRC
 
-    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 & 
-
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     
-    percent=0
-    # Chạy tor lần đầu
+    # Khởi chạy Tor
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -106,16 +114,22 @@ while true; do
                 echo -e "\n\n${G}[THÀNH CÔNG] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
+                echo -e "${B}XOAY:   ${Y}${minute_input} PHÚT${NC}"
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # Vòng lặp xoay IP NGẦM: Combo giết Tor -> Xóa State -> Khởi chạy lại ngầm
+                # Vòng lặp xoay IP NGẦM (Đã fix lỗi dơ màn hình)
                 ( 
                     while true; do 
                         sleep $sec
-                        pkill -9 tor && rm -f $PREFIX/var/lib/tor/state && tor -f "$TORRC" > /dev/null 2>&1 &
-                        sleep 3
-                        echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
+                        # Bọc trong ngoặc nhọn và đẩy ra null để giấu chữ "Killed"
+                        {
+                            pkill -9 tor
+                            rm -f $PREFIX/var/lib/tor/state
+                            tor -f "$TORRC" > /dev/null 2>&1 &
+                            sleep 3
+                            echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
+                        } &>/dev/null
                     done 
                 ) &
                 break
@@ -123,7 +137,6 @@ while true; do
         fi
     done
 
-    # Giữ màn hình đứng yên cho đến khi nhấn CTRL+C
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
 done
