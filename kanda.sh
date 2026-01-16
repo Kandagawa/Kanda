@@ -107,21 +107,16 @@ while true; do
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # --- PHẦN XOAY IP ĐÃ SỬA ---
                 ( 
-    while true; do 
-        sleep $sec
-        pkill -9 tor > /dev/null 2>&1
-        rm -rf $PREFIX/var/lib/tor/state > /dev/null 2>&1
-        tor -f $PREFIX/etc/tor/torrc > /dev/null 2>&1 &
-        
-        # Đợi cho đến khi cổng 9051 mở (nhanh hơn sleep 1 cố định)
-        while ! nc -z 127.0.0.1 9051; do sleep 0.1; done
-        
-        echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
-    done 
-) > /dev/null 2>&1 &
-                # ---------------------------
+                    while true; do 
+                        sleep $sec
+                        pkill -9 tor > /dev/null 2>&1
+                        rm -rf $PREFIX/var/lib/tor/state > /dev/null 2>&1
+                        tor -f $PREFIX/etc/tor/torrc > /dev/null 2>&1 &
+                        sleep 2
+                        echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
+                    done 
+                ) > /dev/null 2>&1 &
                 break
             fi
         fi
