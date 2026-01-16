@@ -1,5 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+# Thiết lập Alias
 if ! grep -q "alias kanda=" ~/.bashrc; then
     echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
     echo 'echo -e "\n\033[1;32mĐể quay lại trang proxy nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
@@ -38,7 +39,7 @@ trap 'stop_flag=true' SIGINT
 
 cleanup
 clear
-echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA <<<${NC}"
+echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA (60S) <<<${NC}"
 
 while true; do
     stop_flag=false
@@ -94,7 +95,8 @@ while true; do
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     
     percent=0
-    while IFS= read -r line; do
+    # Chạy tor lần đầu
+    stdbuf -oL tor -f "$TORRC" 2>/dev/null | while IFS= read -r line; do
         if [[ "$stop_flag" == "true" ]]; then break; fi
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo $line | grep -oP "\d+%" | head -1 | tr -d '%')
@@ -107,13 +109,21 @@ while true; do
                 [ ! -z "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 
-                # Sửa đổi: Vòng lặp xoay IP dùng pkill -9 tor để làm sạch kết nối sau 60s
-                ( while true; do sleep $sec; pkill -9 tor; done ) > /dev/null 2>&1 &
+                # Vòng lặp xoay IP NGẦM: Combo giết Tor -> Xóa State -> Khởi chạy lại ngầm
+                ( 
+                    while true; do 
+                        sleep $sec
+                        pkill -9 tor && rm -f $PREFIX/var/lib/tor/state && tor -f "$TORRC" > /dev/null 2>&1 &
+                        sleep 3
+                        echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
+                    done 
+                ) &
                 break
             fi
         fi
-    done < <(stdbuf -oL tor 2>/dev/null)
+    done
 
+    # Giữ màn hình đứng yên cho đến khi nhấn CTRL+C
     while [[ "$stop_flag" == "false" ]]; do sleep 1; done
     cleanup
 done
