@@ -127,7 +127,7 @@ while true; do
                             pkill -9 tor
                             rm -f $PREFIX/var/lib/tor/state
                             tor -f "$TORRC" > /dev/null 2>&1 &
-                            sleep 3
+                            sleep 1
                             echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
                         } &>/dev/null
                     done 
