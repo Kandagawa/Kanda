@@ -12,7 +12,7 @@
     "693fc6a73ea8a882b73d538f"
   ],
   "proxy_url": [
-    "https://free-proxy-list.net/vi/anonymous-proxy.html"
+    "https://free-proxy-list.net/en/google-proxy.html"
   ],
   "ipinfo": "f52893674903e1",
   "proxycheck": [
