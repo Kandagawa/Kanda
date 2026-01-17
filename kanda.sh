@@ -114,16 +114,16 @@ Log notice stdout" > "$TORRC"
     fi
 }
 
-# ===== RENEW DISPLAY =====
-renew_display() {
-    echo -e "${B}RENEW:  ${Y}${sec}s${NC}"
-    while true; do
-        t=$sec
-        while [ $t -ge 0 ]; do
-            printf "\033[1A\r${B}RENEW:  ${Y}%03ds${NC}\n" "$t"
+# ===== RENEW COUNTDOWN =====
+renew_countdown() {
+    local t=$sec
+    while [[ "$stop_flag" == "false" ]]; do
+        while (( t >= 0 )) && [[ "$stop_flag" == "false" ]]; do
+            printf "\r${B}RENEW:  ${G}%03d${NC}" "$t"
             sleep 1
             ((t--))
         done
+        t=$sec
     done
 }
 
@@ -139,14 +139,15 @@ run_tor() {
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 echo -e "${B}XOAY:   ${Y}${minute_input} PHÚT${NC}"
+                echo -e "${B}RENEW:  ${G}${sec}${NC}"
                 if [ -n "$country_code" ]; then
                     echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                 else
                     echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 fi
-                renew_display &
-                auto_rotate > /dev/null 2>&1 &
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
+                auto_rotate > /dev/null 2>&1 &
+                renew_countdown &
                 break
             fi
         fi
@@ -154,7 +155,7 @@ run_tor() {
 }
 
 auto_rotate() {
-    while true; do
+    while [[ "$stop_flag" == "false" ]]; do
         sleep $sec
         (
             pkill -9 tor
