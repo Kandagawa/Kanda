@@ -40,13 +40,13 @@ cleanup() {
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL + C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
+        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
-            echo -e "${G}>> Lựa chọn: Toàn thế giới.${NC}"
+            echo -e "${G}>> Lựa chọn: Toàn cầu.${NC}"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
@@ -60,12 +60,12 @@ select_country() {
 
 select_rotate_time() {
     while true; do
-        echo -e "\n${Y}[?] Nhập thời gian xoay IP (từ 1 đến 9 phút)${NC}"
+        echo -e "\n${Y}[?] Nhập thời gian làm mới IP (từ 1 đến 9 phút)${NC}"
         printf "    Số phút: "
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
-            echo -e "${G}>> IP sẽ xoay sau mỗi ${minute_input} phút.${NC}"
+            echo -e "${G}>> IP sẽ làm mới mỗi ${minute_input} phút.${NC}"
             return
         else
             echo -e "${R}[!] LỖI: Chỉ nhập 1 chữ số từ 1 đến 9!${NC}"
@@ -114,19 +114,6 @@ Log notice stdout" > "$TORRC"
     fi
 }
 
-# ===== RENEW COUNTDOWN =====
-renew_countdown() {
-    local t=$sec
-    while [[ "$stop_flag" == "false" ]]; do
-        while (( t >= 0 )) && [[ "$stop_flag" == "false" ]]; do
-            printf "\r${B}RENEW:  ${G}%03d${NC}" "$t"
-            sleep 1
-            ((t--))
-        done
-        t=$sec
-    done
-}
-
 run_tor() {
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
@@ -138,16 +125,14 @@ run_tor() {
                 echo -e "\n\n${G}[THÀNH CÔNG] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
-                echo -e "${B}XOAY:   ${Y}${minute_input} PHÚT${NC}"
-                echo -e "${B}RENEW:  ${G}${sec}${NC}"
+                echo -e "${B}RENEW:   ${Y}${minute_input} PHÚT${NC}"
                 if [ -n "$country_code" ]; then
                     echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                 else
-                    echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
+                    echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
+                echo -e "\n${R}* Nhấn CTRL+C để làm mới quốc gia${NC}"
                 auto_rotate > /dev/null 2>&1 &
-                renew_countdown &
                 break
             fi
         fi
@@ -155,7 +140,7 @@ run_tor() {
 }
 
 auto_rotate() {
-    while [[ "$stop_flag" == "false" ]]; do
+    while true; do
         sleep $sec
         (
             pkill -9 tor
