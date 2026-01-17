@@ -114,12 +114,13 @@ Log notice stdout" > "$TORRC"
     fi
 }
 
-# ====== RENEW ĐẾM NGƯỢC (1 DÒNG – XOAY) ======
+# ===== RENEW DISPLAY =====
 renew_display() {
+    echo -e "${B}RENEW:  ${Y}${sec}s${NC}"
     while true; do
         t=$sec
         while [ $t -ge 0 ]; do
-            printf "\rRENEW %03ds" "$t"
+            printf "\033[1A\r${B}RENEW:  ${Y}%03ds${NC}\n" "$t"
             sleep 1
             ((t--))
         done
@@ -143,9 +144,9 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 fi
-                echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
+                renew_display &
                 auto_rotate > /dev/null 2>&1 &
-                renew_display > /dev/null 2>&1 &
+                echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 break
             fi
         fi
