@@ -125,7 +125,7 @@ run_tor() {
                 echo -e "\n\n${G}[THÀNH CÔNG] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
-                echo -e "${B}RENEW:   ${Y}${minute_input} PHÚT${NC}"
+                echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
                 if [ -n "$country_code" ]; then
                     echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                 else
