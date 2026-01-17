@@ -114,6 +114,18 @@ Log notice stdout" > "$TORRC"
     fi
 }
 
+# ===== RENEW ĐẾM NGƯỢC – 1 DÒNG – RESET =====
+renew_countdown() {
+    local t=$sec
+    trap "exit" SIGINT
+    while true; do
+        printf "\r${B}RENEW  ${G}%3ds${NC}" "$t"
+        sleep 1
+        ((t--))
+        [ "$t" -lt 0 ] && t=$sec
+    done
+}
+
 run_tor() {
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
@@ -126,11 +138,15 @@ run_tor() {
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 echo -e "${B}XOAY:   ${Y}${minute_input} PHÚT${NC}"
+
+                renew_countdown > /dev/null 2>&1 &
+
                 if [ -n "$country_code" ]; then
                     echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                 else
                     echo -e "${B}REGION: ${Y}WORLDWIDE${NC}"
                 fi
+
                 echo -e "\n${R}* Nhấn CTRL+C để quay lại chọn quốc gia${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
