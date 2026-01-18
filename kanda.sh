@@ -153,6 +153,12 @@ auto_rotate() {
 }
 
 main() {
+    # Ẩn cái chữ ^Z rác rưởi hiện ra màn hình
+    stty -echoctl
+
+    # Cài Trap đồ tể: Khi nhấn CTRL+Z, nó đớp luôn 3 con đĩ rồi văng ra ~$
+    trap 'pkill -9 tor; pkill -9 privoxy; echo -e "\n\033[1;32mDa tien 3 con di di chau ong ba oke con di\033[0m"; pkill -f "bash"' SIGTSTP
+
     stop_flag=false
     trap 'stop_flag=true' SIGINT
     init_alias
