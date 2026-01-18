@@ -131,7 +131,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}* CTRL+C để làm mới quốc gia | CTRL+Z để dừng${NC}"
+                echo -e "\n${R}* CTRL+C để làm mới quốc gia | Exit để dừng dịch vụ${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -160,6 +160,8 @@ main() {
     cleanup
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
+    echo -e "${R}(Lưu ý: Lần đầu thiết lập sẽ tốn thời gian để tải dữ liệu)${NC}"
+    
     while true; do
         stop_flag=false
         select_country
