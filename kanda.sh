@@ -160,7 +160,7 @@ main() {
     cleanup
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
-    echo -e "${R}(Lưu ý: Lần đầu thiết lập sẽ tốn thời gian để tải dữ liệu)${NC}"
+    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     
     while true; do
         stop_flag=false
