@@ -131,7 +131,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}* Nhấn CTRL+C để làm mới quốc gia${NC}"
+                echo -e "\n${R}* CTRL+C để làm mới quốc gia | CTRL+Z để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -155,8 +155,6 @@ auto_rotate() {
 main() {
     stop_flag=false
     trap 'stop_flag=true' SIGINT
-    # Ẩn log Stopped bằng cách disown tiến trình khi nhấn CTRL+Z
-    trap 'echo -e "\n${R}[!] Đang ẩn log hệ thống...${NC}"; bg > /dev/null 2>&1; disown' SIGTSTP
     init_alias
     init_colors
     cleanup
