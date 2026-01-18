@@ -131,7 +131,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}* CTRL+C để làm mới quốc gia | Exit để dừng dịch vụ${NC}"
+                echo -e "\n${R}*CTRL+C để làm mới quốc gia | [CTRL+C]+[CTRL+Z] để dừng dịch vụ${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
