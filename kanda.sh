@@ -31,8 +31,8 @@ render_bar() {
 }
 
 cleanup() {
-    pkill -9 -f tor > /dev/null 2>&1
-    pkill -9 -f privoxy > /dev/null 2>&1
+    pkill -9 tor > /dev/null 2>&1
+    pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 }
@@ -40,7 +40,7 @@ cleanup() {
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL+C] để quay lại menu nếu bị treo${NC}"
+        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -75,7 +75,7 @@ select_rotate_time() {
 
 install_services() {
     cleanup
-    sleep 0.5
+    sleep 1
     echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
     render_bar 10
     pkg update -y > /dev/null 2>&1
@@ -89,7 +89,12 @@ config_privoxy() {
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    if [ ! -f "$CONF_FILE" ]; then
+        echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    else
+        sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' "$CONF_FILE"
+    fi
+    sed -i '/forward-socks5t/d' "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
@@ -97,7 +102,11 @@ config_privoxy() {
 config_tor() {
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > "$TORRC"
+    echo -e "ControlPort 9051
+CookieAuthentication 0
+MaxCircuitDirtiness $sec
+CircuitBuildTimeout 10
+Log notice stdout" > "$TORRC"
     if [ -n "$country_code" ]; then
         echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
     else
@@ -117,8 +126,12 @@ run_tor() {
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
-                [ -n "$country_code" ] && echo -e "${B}REGION: ${Y}${country_code^^}${NC}" || echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
-                echo -e "\n${R}* CTRL+C để làm mới | CTRL+Z để THOÁT HẲN${NC}"
+                if [ -n "$country_code" ]; then
+                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
+                else
+                    echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
+                fi
+                echo -e "\n${R}* CTRL+C để làm mới quốc gia | CTRL+Z để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -129,30 +142,28 @@ run_tor() {
 auto_rotate() {
     while true; do
         sleep $sec
-        ( pkill -9 tor; tor -f "$TORRC" > /dev/null 2>&1 & ) > /dev/null 2>&1
+        (
+            pkill -9 tor
+            rm -f $PREFIX/var/lib/tor/state
+            tor -f "$TORRC" > /dev/null 2>&1 &
+            sleep 1
+            echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
+        ) > /dev/null 2>&1
     done
 }
 
-# --- PHẦN XỬ LÝ CHÍNH ĐỂ THOÁT SESSION ---
-
 main() {
-    # 1. Ẩn ký tự điều khiển ^Z trên màn hình cho đẹp
-    stty -echoctl 
-
+    # 2 DÒNG THÊM MỚI Ở ĐÂY:
+    stty -echoctl
+    trap 'cleanup; echo -e "\n\033[1;31mĐã đóng oke con đĩ\033[0m"; sleep 1; kill -9 0' SIGTSTP
+    
     stop_flag=false
-    
-    # 2. Bẫy CTRL+C: Chỉ dừng quá trình hiện tại để quay lại chọn quốc gia
     trap 'stop_flag=true' SIGINT
-    
-    # 3. Bẫy CTRL+Z: Dọn dẹp rác rồi GIẾT LUÔN SESSION
-    trap 'echo -e "\n${R}[!] Đang dọn dẹp và đóng Termux...${NC}"; cleanup; kill -9 $PPID' SIGTSTP
-
     init_alias
     init_colors
     cleanup
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
-    
     while true; do
         stop_flag=false
         select_country
