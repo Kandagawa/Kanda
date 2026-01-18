@@ -1,5 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
+# ... (Giữ nguyên các hàm init_alias, init_colors, render_bar, cleanup từ code cũ)
+
 init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
@@ -36,6 +38,8 @@ cleanup() {
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 }
+
+# ... (Giữ nguyên các hàm select_country, select_rotate_time, install_services, config_privoxy, config_tor, run_tor, auto_rotate)
 
 select_country() {
     while true; do
@@ -131,7 +135,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}* CTRL+C để làm mới quốc gia | CTRL+Z để dừng${NC}"
+                echo -e "\n${R}* CTRL+C để làm mới quốc gia | CTRL+Z để dừng dịch vụ${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -152,9 +156,17 @@ auto_rotate() {
     done
 }
 
+# --- CẬP NHẬT CHÍNH TẠI ĐÂY ---
+
 main() {
     stop_flag=false
+    
+    # Bẫy CTRL+C: Chỉ đổi cờ để quay lại menu
     trap 'stop_flag=true' SIGINT
+    
+    # Bẫy CTRL+Z: Dọn dẹp và đóng Session
+    trap 'echo -e "\n${R}[!] Đang đóng quá trình và thoát session...${NC}"; cleanup; exit' SIGTSTP
+    
     init_alias
     init_colors
     cleanup
