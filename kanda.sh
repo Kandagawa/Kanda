@@ -37,12 +37,6 @@ cleanup() {
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 }
 
-handle_exit() {
-    cleanup
-    echo -e "\n${R}[!] Đã dừng toàn bộ dịch vụ.${NC}\n"
-    exit 0
-}
-
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
@@ -161,7 +155,8 @@ auto_rotate() {
 main() {
     stop_flag=false
     trap 'stop_flag=true' SIGINT
-    trap 'handle_exit' SIGTSTP
+    # Ẩn log Stopped bằng cách disown tiến trình khi nhấn CTRL+Z
+    trap 'echo -e "\n${R}[!] Đang ẩn log hệ thống...${NC}"; bg > /dev/null 2>&1; disown' SIGTSTP
     init_alias
     init_colors
     cleanup
