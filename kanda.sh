@@ -153,10 +153,6 @@ auto_rotate() {
 }
 
 main() {
-    # 2 DÒNG THÊM MỚI Ở ĐÂY:
-    stty -echoctl
-    trap 'cleanup; echo -e "\n\033[1;31mĐã đóng oke con đĩ\033[0m"; sleep 1; kill -9 0' SIGTSTP
-    
     stop_flag=false
     trap 'stop_flag=true' SIGINT
     init_alias
