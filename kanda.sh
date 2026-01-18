@@ -37,6 +37,12 @@ cleanup() {
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 }
 
+handle_exit() {
+    cleanup
+    echo -e "\n${R}[!] Đã dừng toàn bộ dịch vụ.${NC}\n"
+    exit 0
+}
+
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
@@ -131,7 +137,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}* Nhấn CTRL+C để làm mới quốc gia${NC}"
+                echo -e "\n${R}* CTRL+C để làm mới quốc gia | CTRL+Z để dừng quá trình${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -155,6 +161,7 @@ auto_rotate() {
 main() {
     stop_flag=false
     trap 'stop_flag=true' SIGINT
+    trap 'handle_exit' SIGTSTP
     init_alias
     init_colors
     cleanup
