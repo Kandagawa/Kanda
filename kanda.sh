@@ -3,7 +3,7 @@
 init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
-        echo 'echo -e "\n\033[1;32mĐể quay lại trang proxy nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
+        echo 'echo -e "\n\033[1;32mĐể quay lại cấu hình nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
