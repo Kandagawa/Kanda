@@ -35,22 +35,21 @@ cleanup() {
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
-    # Khôi phục bàn phím về mặc định khi thoát
-    stty sane
-}
-
-# Hàm logic thoát chuẩn (SIGQUIT)
-exit_kanda() {
-    cleanup
-    exit 0
 }
 
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL+K] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
+        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
-        read input </dev/tty
+        
+        # Sửa logic read để bắt CTRL+C và đá văng ra ~$
+        if ! read input </dev/tty; then
+            echo -e "\n${R}[!] Thoát chương trình.${NC}"
+            cleanup
+            exit 0
+        fi
+
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
@@ -65,7 +64,6 @@ select_country() {
         fi
     done
 }
-
 select_rotate_time() {
     while true; do
         echo -e "\n${Y}[?] Nhập thời gian làm mới IP (từ 1 đến 9 phút)${NC}"
@@ -139,7 +137,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}*[CTRL+K] để làm mới quốc gia | [CTRL+C] để dừng${NC}"
+                echo -e "\n${R}*CTRL+C để làm mới quốc gia | [CTRL+C]+[CTRL+Z] để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -161,16 +159,8 @@ auto_rotate() {
 }
 
 main() {
-    # --- LOGIC MỚI ---
-    # Gán Ctrl+U làm phím Ngắt (để đổi quốc gia)
-    stty intr ^K
+    stop_flag=false
     trap 'stop_flag=true' SIGINT
-
-    # Gán Ctrl+C làm phím Thoát (để đóng tiến trình)
-    stty quit ^C
-    trap 'exit_kanda' SIGQUIT
-    # -----------------
-
     init_alias
     init_colors
     cleanup
