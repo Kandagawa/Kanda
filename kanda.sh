@@ -48,7 +48,7 @@ exit_kanda() {
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
+        echo -e "\n${R}[CTRL+K] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -139,7 +139,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}*CTRL+C để làm mới quốc gia | [CTRL+C]+[CTRL+Z] để dừng${NC}"
+                echo -e "\n${R}*[CTRL+K] để làm mới quốc gia | [CTRL+C] để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
