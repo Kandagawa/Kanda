@@ -35,12 +35,20 @@ cleanup() {
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
+    # Khôi phục cài đặt bàn phím về mặc định khi thoát
+    stty sane
+}
+
+exit_script() {
+    echo -e "\n${R}[!] Đang đóng toàn bộ tiến trình và thoát...${NC}"
+    cleanup
+    exit 0
 }
 
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
+        echo -e "${C}>> Nhấn [CTRL+U] để quay lại nếu nhập sai${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -131,7 +139,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}*CTRL+C để làm mới quốc gia | [CTRL+C]+[CTRL+Z] để dừng${NC}"
+                echo -e "\n${C}[CTRL+U] để thay đổi quốc gia | ${R}[CTRL+C] để thoát hẳn${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -153,12 +161,20 @@ auto_rotate() {
 }
 
 main() {
-    stop_flag=false
-    trap 'stop_flag=true' SIGINT
     init_alias
     init_colors
     cleanup
     clear
+    
+    # THAY ĐỔI PHÍM TẮT:
+    # Gán CTRL+U (ASCII 21) làm tín hiệu Interrupt (SIGINT)
+    stty intr ^U
+    # Bắt tín hiệu CTRL+U để thay đổi quốc gia
+    trap 'stop_flag=true' SIGINT
+    # Bắt tín hiệu CTRL+C (SIGQUIT sau khi đổi) để thoát hẳn
+    stty quit ^C
+    trap 'exit_script' SIGQUIT
+
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
     echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     
