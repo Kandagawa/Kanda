@@ -40,7 +40,7 @@ cleanup() {
 select_country() {
     while true; do
         echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có ip quốc gia đó${NC}"
+        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có IP quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -122,7 +122,7 @@ run_tor() {
             percent=$(echo "$line" | grep -oP "\d+%" | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
-                echo -e "\n\n${G}[THÀNH CÔNG] Kết nối đã sẵn sàng!${NC}"
+                echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
@@ -131,7 +131,7 @@ run_tor() {
                 else
                     echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
-                echo -e "\n${R}*CTRL+C để làm mới quốc gia | [CTRL+C]+[CTRL+Z] để dừng${NC}"
+                echo -e "\n${R}*CTRL+C để làm mới quốc gia${NC} ${Y}[CTRL+C]+[CTRL+Z] để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
