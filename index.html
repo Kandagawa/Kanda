@@ -3,78 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đang tải...</title>
+    <title>Lựa chọn dịch vụ</title>
     <style>
-        /* Thiết kế tối giản, sang trọng */
         body {
-            background-color: #ffffff; /* Hoặc #000000 nếu bạn thích nền tối */
+            background-color: #f5f5f7;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #1d1d1f;
         }
 
-        .loader-wrapper {
+        .container {
             text-align: center;
+            width: 90%;
+            max-width: 500px;
+            padding: 40px 20px;
         }
 
-        /* Vòng xoay mảnh, tinh tế */
-        .spinner {
-            width: 28px;
-            height: 28px;
-            border: 2px solid #f2f2f2;
-            border-top: 2px solid #007aff; /* Màu xanh Apple */
-            border-radius: 50%;
-            animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-            margin: 0 auto 16px;
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            letter-spacing: -0.02em;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .selection-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
-        /* Chữ loading mờ nhẹ */
-        .loading-text {
-            font-size: 14px;
-            font-weight: 400;
-            letter-spacing: -0.01em;
+        .card {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 18px;
+            text-decoration: none;
+            color: #1d1d1f;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+            border-color: #007aff;
+        }
+
+        .card-title {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-desc {
+            font-size: 13px;
             color: #86868b;
-            animation: pulse 1.5s infinite ease-in-out;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.6; }
-            50% { opacity: 1; }
-        }
+        .icon-blue { color: #007aff; }
+        .icon-orange { color: #ff9500; }
 
-        /* Chế độ tối (nếu máy người dùng dùng Dark Mode) */
         @media (prefers-color-scheme: dark) {
             body { background-color: #000000; color: #ffffff; }
-            .spinner { border-color: #2c2c2e; border-top-color: #0a84ff; }
-            .loading-text { color: #a1a1a6; }
+            .card { background: #1c1c1e; color: #ffffff; border-color: #2c2c2e; }
+            .card-desc { color: #a1a1a6; }
+            .card:hover { border-color: #0a84ff; }
         }
     </style>
 </head>
 <body>
 
-    <div class="loader-wrapper">
-        <div class="spinner"></div>
-        <div class="loading-text">Đang tải nội dung...</div>
-    </div>
-
-    <script>
-        // Link đích của bạn
-        const REDIRECT_URL = "https://asset-webhook--sda368617.replit.app";
+    <div class="container">
+        <h1>Vui lòng chọn dịch vụ</h1>
         
-        // Chuyển hướng sau 2 giây để tạo cảm giác mượt mà
-        setTimeout(() => {
-            window.location.replace(REDIRECT_URL);
-        }, 2000);
-    </script>
+        <div class="selection-wrapper">
+            <a href="https://asset-webhook--sda368617.replit.app" class="card">
+                <div class="card-title icon-blue">Hỗ Trợ Buy Vipplayer</div>
+                <div class="card-desc">Thực hiện thanh toán bằng Code tiện lợi</div>
+            </a>
+
+            <a href="https://asset-manager--hiko82640.replit.app/" class="card">
+                <div class="card-title icon-orange">Kéo Dài Renew UGPhone</div>
+                <div class="card-desc">Quản lý và gia hạn tài khoản UGPhone</div>
+            </a>
+        </div>
+    </div>
 
 </body>
 </html>
