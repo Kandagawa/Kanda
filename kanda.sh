@@ -1,26 +1,21 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # 1. Thêm alias kanda (Kiểm tra và chỉ thêm nếu chưa có)
+    # 1. Thêm alias kanda
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
     fi
     
-    # 2. Tạo file thực thi kanda trong bin (Giúp gõ là ăn ngay lần đầu)
+    # 2. Tạo file thực thi kanda trong bin
     if [ ! -f "$PREFIX/bin/kanda" ]; then
         echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
         chmod +x "$PREFIX/bin/kanda"
     fi
 
-    # 3. FIX LỖI HIỆN NHIỀU LẦN: Xóa dòng thông báo cũ trước khi ghi dòng mới
-    # Lệnh này xóa mọi dòng có chứa cụm từ "kanda" mà định dạng là lệnh echo trong .bashrc
-    sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
-    
-    # Ghi lại dòng thông báo duy nhất vào cuối file
-    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
-    
-    # Load lại bashrc để nhận diện alias ngay lập tức nếu cần
-    source ~/.bashrc 2>/dev/null
+    # 3. THÊM VÀO ĐÂY: Tự động thêm dòng chữ vào màn hình chính Termux
+    if ! grep -q "Lệnh quay lại cấu hình nhập: kanda" ~/.bashrc; then
+        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
+    fi
 }
 
 init_colors() {
@@ -149,6 +144,7 @@ main() {
     init_alias
     init_colors
     clear
+    # Dòng này vẫn giữ để hiện lúc đang chạy script
     echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
     echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
