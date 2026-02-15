@@ -76,16 +76,13 @@ select_rotate_time() {
 install_services() {
     cleanup
     sleep 1
-    echo -e "\n${C}[*] Đang đồng bộ hệ thống (Ưu tiên Update)...${NC}"
+    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
     render_bar 10
-    # Cập nhật repository và nâng cấp các gói cốt lõi để fix lỗi thư viện SSL
-    pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    # Chỉ Update repository, không Upgrade toàn bộ để tránh kẹt mạch
+    pkg update -y > /dev/null 2>&1
     render_bar 40
-    # Cài đặt các dịch vụ cần thiết
+    # Cài thêm openssl để hỗ trợ curl mới nhất
     pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
-    render_bar 70
-    # Ép cài lại curl để đảm bảo liên kết đúng với thư viện mới vừa update
-    pkg install curl --reinstall -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
 }
@@ -131,8 +128,8 @@ run_tor() {
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            # Lấy giá trị phần trăm đầu tiên tìm thấy để tránh lỗi kẹt vòng lặp
-            percent=$(echo "$line" | grep -oP "\d+%" | head -n 1 | tr -d '%')
+            # Lấy số % đầu tiên tránh lỗi lặp dòng
+            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
@@ -166,6 +163,10 @@ auto_rotate() {
 }
 
 main() {
+    # ƯU TIÊN SỬA LỖI CURL TẠI ĐÂY (KHÔNG GÂY TREO)
+    echo -e "\033[1;36m[*] Đang kiểm tra tương thích hệ thống...\033[0m"
+    pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    
     stop_flag=false
     trap 'stop_flag=true' SIGINT
     init_alias
@@ -173,7 +174,7 @@ main() {
     cleanup
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
-    echo -e "\n${R}Lưu ý: Hệ thống sẽ tự cập nhật để tránh lỗi thư viện${NC}"
+    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     
     while true; do
         stop_flag=false
