@@ -1,26 +1,20 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # 1. Thêm alias kanda
+    # Dùng đúng nguyên bản logic của mày: Bọc tất cả vào if grep để không bao giờ lặp lại
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
+        
+        # Tạo file thực thi trong bin nếu chưa có
+        if [ ! -f "$PREFIX/bin/kanda" ]; then
+            echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
+            chmod +x "$PREFIX/bin/kanda"
+        fi
+        
+        # Load lại cấu hình ngay lập tức
+        source ~/.bashrc > /dev/null 2>&1
     fi
-    
-    # 2. Tạo file thực thi kanda trong bin
-    if [ ! -f "$PREFIX/bin/kanda" ]; then
-        echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
-        chmod +x "$PREFIX/bin/kanda"
-    fi
-
-    # 3. FIX PHẦN BỊ ĐÈ: Xóa sạch các dòng thông báo cũ trước khi thêm dòng mới
-    # Lệnh sed này sẽ dọn sạch đống rác bị lặp trong ảnh mày gửi
-    sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
-    
-    # Sau khi dọn sạch, thêm lại duy nhất 1 dòng chuẩn
-    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
-    
-    # Load lại cấu hình
-    source ~/.bashrc > /dev/null 2>&1
 }
 
 init_colors() {
@@ -93,8 +87,10 @@ install_services() {
     render_bar "Tiến trình 1" $current_p
 
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
+        touch /tmp/progress_kanda
         (
             for ((i=21; i<=98; i++)); do
+                [[ ! -f /tmp/progress_kanda ]] && break
                 echo "$i" > /tmp/progress_kanda
                 sleep 0.15
             done
@@ -112,7 +108,7 @@ install_services() {
         done
     fi
     
-    rm -f /tmp/progress_kanda
+    rm -f /tmp/progress_kanda > /dev/null 2>&1
     render_bar "Tiến trình 1" 100
     echo -e "" 
 }
@@ -190,11 +186,11 @@ main() {
         config_privoxy
         config_tor
         run_tor
+        
         while [[ "$stop_flag" == "false" ]]; do 
             if [[ -f /tmp/progress_kanda ]]; then
-                # Thêm 2>/dev/null để tránh lỗi hiện ra màn hình nếu file bị xóa bất ngờ
                 val=$(cat /tmp/progress_kanda 2>/dev/null)
-                [[ -n "$val" ]] && render_bar "Tiến trình 1" $val
+                [[ -n "$val" ]] && render_bar "Tiến trình 1" "$val"
             fi
             sleep 0.2
         done
