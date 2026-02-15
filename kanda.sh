@@ -199,5 +199,3 @@ main() {
 }
 
 main
-
-sửa màu tím của chữ thành màu khác tại tím này nổi quá, và giữ nguyên toàn bộ màu lại không sửa, icon giữ nguyên màu
