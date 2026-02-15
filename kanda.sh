@@ -1,32 +1,27 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # Giữ nguyên bản logic của mày
+    # Dùng đúng nguyên bản logic của mày: Bọc tất cả vào if grep để không bao giờ lặp lại
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
         echo -e 'echo -e "\\n\\033[1;30m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
         
+        # Tạo file thực thi trong bin nếu chưa có
         if [ ! -f "$PREFIX/bin/kanda" ]; then
             echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
             chmod +x "$PREFIX/bin/kanda"
         fi
         
+        # Load lại cấu hình ngay lập tức
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
 
 init_colors() {
-    # Giữ nguyên màu Icon, chỉ đổi mã màu TÍM cũ thành XANH DƯƠNG (1;34) cho chữ
-    # Màu này trầm hơn, không bị nổi quá đà như màu tím cũ.
-    PURPLE='\033[1;34m';    # Đã đổi sang Xanh dương nhạt cho dịu
-    CYAN='\033[1;36m'; 
-    GREEN='\033[1;32m'; 
-    YELLOW='\033[1;33m'; 
-    RED='\033[1;31m'; 
-    WHITE='\033[1;37m';
-    GREY='\033[1;30m'; 
-    BLUE='\033[1;34m'; 
-    NC='\033[0m'
+    # Chuyển hết sang mã Bold (1;...) để màu đậm và nét hơn
+    PURPLE='\033[1;38;5;141m'; CYAN='\033[1;36m'; GREEN='\033[1;32m'
+    YELLOW='\033[1;33m'; RED='\033[1;31m'; WHITE='\033[1;37m'
+    GREY='\033[1;30m'; BLUE='\033[1;34m'; NC='\033[0m'
 }
 
 render_bar() {
@@ -52,7 +47,6 @@ cleanup() {
 }
 
 select_country() {
-    # Icon ◈ vẫn dùng biến PURPLE nhưng giờ đã là màu Xanh Dương dịu hơn
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
         printf "  ${GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
@@ -103,8 +97,10 @@ install_services() {
             done
         ) &
         local sub_pid=$!
+        
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+        
         kill $sub_pid &> /dev/null
     else
         for ((i=21; i<=100; i+=10)); do
@@ -112,6 +108,7 @@ install_services() {
             sleep 0.05
         done
     fi
+    
     rm -f /tmp/progress_kanda > /dev/null 2>&1
     render_bar "Tiến trình 1" 100
     echo -e "" 
@@ -202,3 +199,5 @@ main() {
 }
 
 main
+
+sửa màu tím của chữ thành màu khác tại tím này nổi quá, và giữ nguyên toàn bộ màu lại không sửa, icon giữ nguyên màu
