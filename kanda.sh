@@ -40,7 +40,7 @@ cleanup() {
 select_country() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, all):${NC} ${YELLOW}"
+        printf "  ${GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
@@ -60,13 +60,13 @@ select_country() {
 select_rotate_time() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THỜI GIAN XOAY IP${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Số phút (1-9):${NC} ${YELLOW}"
+        printf "  ${GREY}╰─>${NC} ${BLUE}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
             break
         else
-            echo -e "      ${RED}✗ Chỉ nhập số 1-9!${NC}"
+            echo -e "      ${RED}✗ Chỉ nhập số từ 1 đến 9!${NC}"
         fi
     done
 }
@@ -116,7 +116,7 @@ run_tor() {
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}        : Đặt lại cấu hình${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]+[Z]${GREY}    : Dừng hoàn toàn${NC}\n"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}    : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -136,7 +136,9 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "${GREY}[*] Đang tối ưu hóa hệ thống...${NC}"
+    # Dòng thông báo lệnh kanda xuất hiện ngay khi khởi chạy
+    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
+    echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     
     while true; do
@@ -144,7 +146,7 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}TRÌNH QUẢN LÝ PROXY${NC} ${PURPLE}▬▬▬${NC}"
+        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         select_country
         select_rotate_time
         install_services
