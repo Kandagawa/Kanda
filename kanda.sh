@@ -1,21 +1,26 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # 1. Thêm alias kanda
+    # 1. Thêm alias kanda (Kiểm tra chính xác để không trùng lặp)
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
     fi
     
-    # 2. Tạo file thực thi kanda trong bin
+    # 2. Tạo file thực thi kanda trong bin (Giúp gõ kanda là chạy luôn không cần đợi source)
     if [ ! -f "$PREFIX/bin/kanda" ]; then
         echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
         chmod +x "$PREFIX/bin/kanda"
     fi
 
-    # 3. THÊM VÀO ĐÂY: Tự động thêm dòng chữ vào màn hình chính Termux
-    if ! grep -q "Lệnh quay lại cấu hình nhập: kanda" ~/.bashrc; then
-        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
-    fi
+    # 3. FIX LỖI LẶP DÒNG: Xóa sạch các dòng thông báo cũ trước khi thêm dòng mới
+    # Dùng sed để xóa tất cả các dòng có chứa nội dung thông báo kanda cũ
+    sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
+    
+    # Thêm lại một dòng duy nhất vào cuối file
+    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
+    
+    # FIX LỖI NHẬP 2 LẦN: Load lại bashrc ngay lập tức
+    source ~/.bashrc 2>/dev/null
 }
 
 init_colors() {
@@ -144,7 +149,6 @@ main() {
     init_alias
     init_colors
     clear
-    # Dòng này vẫn giữ để hiện lúc đang chạy script
     echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
     echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
