@@ -1,13 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # Kiểm tra nếu đã có alias kanda thì không làm gì cả để tránh đè dòng
-    if grep -q "alias kanda=" ~/.bashrc; then
-        return
-    fi
-
     # 1. Thêm alias kanda
-    echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+    if ! grep -q "alias kanda=" ~/.bashrc; then
+        echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+    fi
     
     # 2. Tạo file thực thi kanda trong bin
     if [ ! -f "$PREFIX/bin/kanda" ]; then
@@ -15,10 +12,10 @@ init_alias() {
         chmod +x "$PREFIX/bin/kanda"
     fi
 
-    # 3. Thêm dòng chữ vào màn hình chính Termux (Chỉ ghi 1 lần duy nhất)
-    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
-    
-    source ~/.bashrc > /dev/null 2>&1
+    # 3. Tự động thêm dòng chữ vào màn hình chính Termux
+    if ! grep -q "Lệnh quay lại cấu hình nhập: kanda" ~/.bashrc; then
+        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
+    fi
 }
 
 init_colors() {
@@ -85,10 +82,35 @@ select_rotate_time() {
 install_services() {
     cleanup
     echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
-    render_bar "Tiến trình 1" 20
-    pkg update -y > /dev/null 2>&1
-    render_bar "Tiến trình 1" 60
-    pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+    
+    # FIX TIẾN TRÌNH 1: Chạy mượt, nhích đều
+    local current_p=20
+    render_bar "Tiến trình 1" $current_p
+
+    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
+        # Vòng lặp tăng thanh % ảo để tạo hiệu ứng mượt khi đang tải thật
+        (
+            for ((i=21; i<=98; i++)); do
+                echo "$i" > /tmp/progress_kanda
+                sleep 0.15
+            done
+        ) &
+        local sub_pid=$!
+        
+        # Chạy lệnh thật
+        pkg update -y > /dev/null 2>&1
+        pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+        
+        kill $sub_pid &> /dev/null
+    else
+        # Nếu đã có sẵn thì nhích nhanh cho đẹp
+        for ((i=21; i<=100; i+=10)); do
+            render_bar "Tiến trình 1" $i
+            sleep 0.05
+        done
+    fi
+    
+    rm -f /tmp/progress_kanda
     render_bar "Tiến trình 1" 100
     echo -e "" 
 }
@@ -144,14 +166,16 @@ auto_rotate() {
 }
 
 main() {
-    init_alias  # Di chuyển ra ngoài vòng lặp để chỉ chạy 1 lần khi mở script
+    init_alias
     init_colors
     clear
-    
-    # Kiểm tra tối ưu hệ thống (chạy 1 lần duy nhất khi khởi động script)
     echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
     echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
-    pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    
+    # CHỈ UPGRADE NẾU CHƯA CÓ TOR (TỐI ƯU TỐC ĐỘ KHỞI ĐỘNG)
+    if ! command -v tor &> /dev/null; then
+        pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    fi
     
     while true; do
         stop_flag=false
@@ -165,7 +189,14 @@ main() {
         config_privoxy
         config_tor
         run_tor
-        while [[ "$stop_flag" == "false" ]]; do sleep 1; done
+        # Vòng lặp chờ phản hồi từ file tạm nếu đang chạy fake progress
+        while [[ "$stop_flag" == "false" ]]; do 
+            if [[ -f /tmp/progress_kanda ]]; then
+                val=$(cat /tmp/progress_kanda)
+                render_bar "Tiến trình 1" $val
+            fi
+            sleep 0.2
+        done
     done
 }
 
