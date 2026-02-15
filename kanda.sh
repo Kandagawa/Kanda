@@ -136,6 +136,8 @@ main() {
     init_alias
     init_colors
     clear
+    # Dòng thông báo lệnh kanda xuất hiện ngay khi khởi chạy
+    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
     echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     
