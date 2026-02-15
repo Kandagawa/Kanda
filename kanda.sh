@@ -12,10 +12,10 @@ init_alias() {
         chmod +x "$PREFIX/bin/kanda"
     fi
 
-    # 3. Tự động thêm dòng chữ vào màn hình chính Termux
-    if ! grep -q "Lệnh quay lại cấu hình nhập: kanda" ~/.bashrc; then
-        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
-    fi
+    # 3. FIX PHẦN BỊ ĐÈ: Xóa hết các dòng thông báo kanda cũ và ghi lại duy nhất 1 dòng
+    # Dùng sed xóa tất cả các dòng chứa "Lệnh quay lại cấu hình nhập" để dọn dẹp lặp lại
+    sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
+    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
 }
 
 init_colors() {
@@ -83,12 +83,10 @@ install_services() {
     cleanup
     echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
     
-    # FIX TIẾN TRÌNH 1: Chạy mượt, nhích đều
     local current_p=20
     render_bar "Tiến trình 1" $current_p
 
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
-        # Vòng lặp tăng thanh % ảo để tạo hiệu ứng mượt khi đang tải thật
         (
             for ((i=21; i<=98; i++)); do
                 echo "$i" > /tmp/progress_kanda
@@ -97,13 +95,11 @@ install_services() {
         ) &
         local sub_pid=$!
         
-        # Chạy lệnh thật
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
         
         kill $sub_pid &> /dev/null
     else
-        # Nếu đã có sẵn thì nhích nhanh cho đẹp
         for ((i=21; i<=100; i+=10)); do
             render_bar "Tiến trình 1" $i
             sleep 0.05
@@ -172,7 +168,6 @@ main() {
     echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
     echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     
-    # CHỈ UPGRADE NẾU CHƯA CÓ TOR (TỐI ƯU TỐC ĐỘ KHỞI ĐỘNG)
     if ! command -v tor &> /dev/null; then
         pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     fi
@@ -189,7 +184,6 @@ main() {
         config_privoxy
         config_tor
         run_tor
-        # Vòng lặp chờ phản hồi từ file tạm nếu đang chạy fake progress
         while [[ "$stop_flag" == "false" ]]; do 
             if [[ -f /tmp/progress_kanda ]]; then
                 val=$(cat /tmp/progress_kanda)
