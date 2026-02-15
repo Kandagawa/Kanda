@@ -9,8 +9,13 @@ init_alias() {
 }
 
 init_colors() {
-    G='\033[1;32m'; Y='\033[1;33m'; B='\033[1;34m'
-    C='\033[1;36m'; W='\033[1;37m'; R='\033[1;31m'; NC='\033[0m'
+    G='\033[1;32m'
+    Y='\033[1;33m'
+    B='\033[1;34m'
+    C='\033[1;36m'
+    W='\033[1;37m'
+    R='\033[1;31m'
+    NC='\033[0m'
 }
 
 render_bar() {
@@ -71,14 +76,12 @@ select_rotate_time() {
 install_services() {
     cleanup
     sleep 1
-    echo -e "\n${C}[*] Khởi tạo dịch vụ & Sửa lỗi hệ thống...${NC}"
-    render_bar 20
-    # Lệnh quan trọng để fix lỗi symbol SSL bị thiếu trong ảnh của bạn
-    pkg update -y && pkg upgrade -y > /dev/null 2>&1
-    render_bar 50
-    pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
-    # Buộc cài lại curl để đảm bảo liên kết thư viện mới nhất
-    pkg install curl --reinstall -y > /dev/null 2>&1
+    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
+    render_bar 10
+    # CHỈ THÊM DÒNG NÀY ĐỂ FIX LỖI THƯ VIỆN
+    pkg update -y && pkg upgrade -y && pkg install openssl curl -y > /dev/null 2>&1
+    render_bar 40
+    pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
 }
@@ -87,7 +90,12 @@ config_privoxy() {
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    if [ ! -f "$CONF_FILE" ]; then
+        echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    else
+        sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' "$CONF_FILE"
+    fi
+    sed -i '/forward-socks5t/d' "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
@@ -119,17 +127,18 @@ run_tor() {
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
+            percent=$(echo "$line" | grep -oP "\d+%" | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
-                # Kiểm tra IP thực tế thông qua Proxy, ẩn lỗi nếu thư viện vẫn đang cập nhật
-                IP_NOW=$(curl -s --proxy http://127.0.0.1:8118 https://api.ipify.org 2>/dev/null || echo "Đang lấy IP...")
-                echo -e "\n${B}IP HIỆN TẠI: ${W}${IP_NOW}${NC}"
-                echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
+                echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
-                echo -e "${B}REGION: ${Y}${country_code^^:-TOÀN CẦU}${NC}"
+                if [ -n "$country_code" ]; then
+                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
+                else
+                    echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
+                fi
                 echo -e "\n${Y}[CTRL+C] để làm mới quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
@@ -158,7 +167,8 @@ main() {
     init_colors
     cleanup
     clear
-    echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG (FIXED) <<<${NC}"
+    echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
+    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     
     while true; do
         stop_flag=false
