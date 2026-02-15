@@ -1,11 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # Thêm vào .bashrc
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
     fi
-    # Tạo file thực thi vào hệ thống để nhận lệnh ngay lập tức
     if [ ! -f "$PREFIX/bin/kanda" ]; then
         echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
         chmod +x "$PREFIX/bin/kanda"
@@ -13,20 +11,22 @@ init_alias() {
 }
 
 init_colors() {
-    G='\033[1;32m'; Y='\033[1;33m'; B='\033[1;34m'; C='\033[1;36m'
-    W='\033[1;37m'; R='\033[1;31m'; M='\033[1;35m'; NC='\033[0m'
+    # Tông màu chuyên nghiệp: Cyan, White, Grey
+    G='\033[38;5;82m'; Y='\033[38;5;226m'; B='\033[38;5;33m'
+    C='\033[38;5;51m'; W='\033[38;5;255m'; R='\033[38;5;196m'
+    D='\033[38;5;244m'; NC='\033[0m'
 }
 
 render_bar() {
     local percent=$1
-    local w=25
+    local w=30
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r\033[K${C}[*] Đang cài đặt: ${B}[${G}"
-    for ((j=0; j<filled; j++)); do printf "●"; done
-    printf "${W}"
-    for ((j=0; j<empty; j++)); do printf "○"; done
-    printf "${B}] ${Y}%d%%${NC}" "$percent"
+    printf "\r${D}  Status: ${C}"
+    for ((j=0; j<filled; j++)); do printf "━"; done
+    printf "${D}"
+    for ((j=0; j<empty; j++)); do printf "━"; done
+    printf " ${W}%d%%${NC}" "$percent"
 }
 
 cleanup() {
@@ -37,52 +37,42 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "${B}┌──────────────────────────────────────────────────┐${NC}"
-    echo -e "${B}│${W}             THIẾT LẬP QUỐC GIA IP              ${B}│${NC}"
-    echo -e "${B}└──────────────────────────────────────────────────┘${NC}"
+    echo -e "\n${W}  [ SETTINGS ]${NC}"
     while true; do
-        echo -e "${Y}[?] Nhập mã quốc gia (jp, vn, us, sg... hoặc all)${NC}"
-        printf "    Lựa chọn: "
+        printf "  ${D}» Target Country (eg: us, jp, all): ${W}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
-            echo -e "${G}>> Lựa chọn: Toàn cầu.${NC}"
             break
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
-            echo -e "${G}>> Lựa chọn quốc gia: ${country_code^^}${NC}"
             break
         else
-            echo -e "${R}[!] LỖI: Mã quốc gia không hợp lệ (phải là 2 chữ cái)!${NC}"
+            echo -e "  ${R}! Invalid code.${NC}"
         fi
     done
 }
 
 select_rotate_time() {
-    echo -e "\n${B}┌──────────────────────────────────────────────────┐${NC}"
-    echo -e "${B}│${W}             THIẾT LẬP THỜI GIAN XOAY           ${B}│${NC}"
-    echo -e "${B}└──────────────────────────────────────────────────┘${NC}"
     while true; do
-        echo -e "${Y}[?] Nhập số phút để làm mới IP (1-9)${NC}"
-        printf "    Số phút: "
+        printf "  ${D}» Rotation Interval (1-9 min): ${W}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
-            echo -e "${G}>> Làm mới sau mỗi ${minute_input} phút.${NC}"
             break
         else
-            echo -e "${R}[!] LỖI: Chỉ nhập số từ 1 đến 9!${NC}"
+            echo -e "  ${R}! Enter 1-9.${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    echo -e "\n${C}[*] Đang khởi tạo dịch vụ hệ thống...${NC}"
-    render_bar 20
+    echo -e "\n${D}  Synchronizing system...${NC}"
+    render_bar 30
     pkg update -y > /dev/null 2>&1
-    render_bar 60
+    render_bar 70
     pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
@@ -107,24 +97,21 @@ config_tor() {
 }
 
 run_tor() {
-    echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
+    render_bar 0
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
+            render_bar "$percent"
             if [ "$percent" -eq 100 ]; then
                 clear
-                echo -e "${G}      >>> KẾT NỐI ĐÃ SẴN SÀNG! <<<${NC}"
-                echo -e "${B}┌──────────────────────────────────────────────────┐${NC}"
-                echo -e "${B}│${C}  PROXY HOST  ${B}│${W}  127.0.0.1                        ${B}│${NC}"
-                echo -e "${B}│${C}  PROXY PORT  ${B}│${W}  8118                             ${B}│${NC}"
-                echo -e "${B}├──────────────────────────────────────────────────┤${NC}"
-                echo -e "${B}│${C}  QUỐC GIA    ${B}│${Y}  ${country_code^^:-TOÀN CẦU}${W}                          ${B}│${NC}"
-                echo -e "${B}│${C}  LÀM MỚI     ${B}│${Y}  ${minute_input} PHÚT                            ${B}│${NC}"
-                echo -e "${B}└──────────────────────────────────────────────────┘${NC}"
-                echo -e "${M}[!] Trạng thái: ${G}Đang hoạt động ngầm...${NC}"
-                echo -e "\n${Y}[CTRL+C] để đổi quốc gia${NC} | ${R}[CTRL+C] 2 lần để thoát${NC}"
+                echo -e "\n  ${C}●${W} PROXY SYSTEM ACTIVE${NC}"
+                echo -e "  ${D}────────────────────────────${NC}"
+                echo -e "  ${D}Address  :${W} 127.0.0.1:8118${NC}"
+                echo -e "  ${D}Region   :${W} ${country_code^^:-GLOBAL}${NC}"
+                echo -e "  ${D}Rotation :${W} ${minute_input} min${NC}"
+                echo -e "  ${D}────────────────────────────${NC}"
+                echo -e "  ${D}Press [CTRL+C] to reset${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -143,7 +130,8 @@ auto_rotate() {
 main() {
     init_alias
     init_colors
-    echo -e "${C}[*] Đang tối ưu hệ thống và fix lỗi curl...${NC}"
+    clear
+    echo -e "${D}[*] Optimizing environment...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     
     while true; do
@@ -151,9 +139,8 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "${G}====================================================${NC}"
-        echo -e "${W}         KANDA PROXY - TỰ ĐỘNG XOAY IP              ${NC}"
-        echo -e "${G}====================================================${NC}"
+        echo -e "${W}  PROXY CONFIGURATION${NC}"
+        echo -e "${D}  ────────────────────${NC}"
         select_country
         select_rotate_time
         install_services
