@@ -102,10 +102,8 @@ config_privoxy() {
 config_tor() {
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    # Thêm DataDirectory và quyền hạn để giống với lệnh chạy tay thành công của bạn
     mkdir -p $PREFIX/var/lib/tor
     chmod 700 $PREFIX/var/lib/tor
-    
     echo -e "ControlPort 9051
 CookieAuthentication 0
 MaxCircuitDirtiness $sec
@@ -121,45 +119,25 @@ Log notice stdout" > "$TORRC"
 
 run_tor() {
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
-    # Dùng stdbuf để tránh nghẽn dòng chảy dữ liệu
     stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            # Dùng sed để bốc tách phần trăm - chuẩn cho Termux
             percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
-            
             if [ -n "$percent" ]; then
                 printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
-                
                 if [ "$percent" -eq 100 ]; then
                     echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
-                    echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
-                    echo -e "${B}PORT:   ${W}8118${NC}"
-                    echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
                     if [ -n "$country_code" ]; then
                         echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
                     else
                         echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                     fi
-                    echo -e "\n${Y}[CTRL+C] để làm mới quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
-                    auto_rotate > /dev/null 2>&1 &
+                    echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
+                    echo -e "\n${Y}[CTRL+C] để đổi quốc gia${NC}"
                     break
                 fi
             fi
         fi
-    done
-}
-
-auto_rotate() {
-    while true; do
-        sleep $sec
-        (
-            pkill -9 tor
-            rm -f $PREFIX/var/lib/tor/state
-            tor -f "$TORRC" > /dev/null 2>&1 &
-            sleep 1
-            echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
-        ) > /dev/null 2>&1
     done
 }
 
@@ -172,7 +150,6 @@ main() {
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
     echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
-    
     while true; do
         stop_flag=false
         select_country
@@ -181,7 +158,23 @@ main() {
         config_privoxy
         config_tor
         run_tor
-        while [[ "$stop_flag" == "false" ]]; do sleep 1; done
+        
+        countdown=$sec
+        while [[ "$stop_flag" == "false" ]]; do
+            printf "\r${B}ĐỔI IP SAU: ${R}%02d:%02d${NC} " "$((countdown/60))" "$((countdown%60))"
+            sleep 1
+            ((countdown--))
+            if [ $countdown -lt 0 ]; then
+                (
+                    pkill -9 tor
+                    rm -f $PREFIX/var/lib/tor/state
+                    tor -f "$TORRC" > /dev/null 2>&1 &
+                    sleep 1
+                    echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
+                ) > /dev/null 2>&1
+                countdown=$sec
+            fi
+        done
         cleanup
     done
 }
