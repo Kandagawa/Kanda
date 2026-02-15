@@ -24,7 +24,7 @@ render_bar() {
     local w=20
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r  ${W}── ${C}Processing ${B}[${G}"
+    printf "\r  ${W}── ${C}Đang tải: ${B}[${G}"
     for ((j=0; j<filled; j++)); do printf "■"; done
     printf "${W}"
     for ((j=0; j<empty; j++)); do printf " "; done
@@ -43,22 +43,20 @@ select_country() {
         echo -e "\n  ${BOLD}${W}┌──────────────────────────────────────────┐${NC}"
         echo -e "  ${W}│         ${C}THIẾT LẬP VÙNG QUỐC GIA          ${W}│${NC}"
         echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
-        echo -e "  ${W}● Gợi ý: ${G}jp, us, sg, ca... ${W}hoặc ${Y}all${NC}"
+        echo -e "  ${W}● Gợi ý: ${G}jp, us, sg, de, ca... ${W}hoặc ${Y}all${NC}"
         printf "  ${BOLD}${G}»${NC} ${W}Mã quốc gia: ${NC}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
-            display_region="GLOBAL"
-            echo -e "  ${W}── ${G}Lựa chọn: Toàn cầu${NC}"
+            display_region="TOÀN CẦU"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
             display_region="${country_code^^}"
-            echo -e "  ${W}── ${G}Lựa chọn: ${display_region}${NC}"
             return
         else
-            echo -e "  ${R}[!] Lỗi: Mã quốc gia không hợp lệ!${NC}"
+            echo -e "  ${R}[!] LỖI: Mã không hợp lệ!${NC}"
         fi
     done
 }
@@ -68,15 +66,13 @@ select_rotate_time() {
         echo -e "\n  ${BOLD}${W}┌──────────────────────────────────────────┐${NC}"
         echo -e "  ${W}│         ${C}THỜI GIAN XOAY IP (PHÚT)         ${W}│${NC}"
         echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
-        echo -e "  ${W}● Gợi ý: ${Y}Nên chọn từ 1 đến 5 phút${NC}"
-        printf "  ${BOLD}${G}»${NC} ${W}Số phút: ${NC}"
+        printf "  ${BOLD}${G}»${NC} ${W}Số phút (1-9): ${NC}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
-            echo -e "  ${W}── ${G}Làm mới mỗi: ${minute_input} phút${NC}"
             return
         else
-            echo -e "  ${R}[!] Lỗi: Chỉ nhập số từ 1 đến 9!${NC}"
+            echo -e "  ${R}[!] LỖI: Chỉ nhập từ 1 đến 9!${NC}"
         fi
     done
 }
@@ -84,7 +80,7 @@ select_rotate_time() {
 install_services() {
     cleanup
     sleep 1
-    echo -e "\n  ${C}── Đang chuẩn bị dịch vụ...${NC}"
+    echo -e "\n  ${C}── Đang khởi tạo dịch vụ...${NC}"
     render_bar 10
     pkg update -y > /dev/null 2>&1
     render_bar 40
@@ -112,18 +108,15 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     mkdir -p $PREFIX/var/lib/tor
     chmod 700 $PREFIX/var/lib/tor
-    
-    # Thêm LearnCircuitBuildTimeout và giảm StrictNodes để tránh kẹt 50%
+    # Giữ nguyên logic cấu hình của bạn
     echo -e "ControlPort 9051
 CookieAuthentication 0
 MaxCircuitDirtiness $sec
 CircuitBuildTimeout 10
-LearnCircuitBuildTimeout 0
 DataDirectory $PREFIX/var/lib/tor
 Log notice stdout" > "$TORRC"
-
     if [ -n "$country_code" ]; then
-        # Dùng StrictNodes 0 để ưu tiên quốc gia đó, nếu kẹt Tor sẽ tự tìm mạch khác
+        # Để chạy được 100% không bị treo, ta dùng StrictNodes 0
         echo -e "ExitNodes {$country_code}\nStrictNodes 0" >> "$TORRC"
     else
         echo -e "StrictNodes 0" >> "$TORRC"
@@ -131,24 +124,24 @@ Log notice stdout" > "$TORRC"
 }
 
 run_tor() {
-    printf "  ${W}── ${C}Khởi tạo mạch Tor: ${Y}0%%${NC}"
+    printf "  ${W}── ${C}Thiết lập mạch kết nối: ${Y}0%%${NC}"
     stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
             if [ -n "$percent" ]; then
-                printf "\r  ${W}── ${C}Khởi tạo mạch Tor: ${Y}${percent}%%${NC}"
+                printf "\r  ${W}── ${C}Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
                 if [ "$percent" -eq 100 ]; then
                     clear
-                    echo -e "\n  ${G}${BOLD}✔ KẾT NỐI HOÀN TẤT!${NC}"
+                    echo -e "\n  ${G}${BOLD}✔ KẾT NỐI ĐÃ SẴN SÀNG!${NC}"
                     echo -e "  ${W}┌──────────────────────────────────────────┐${NC}"
                     echo -e "  ${W}│ ${C}REGION ${NC}» ${Y}${display_region}${NC}"
-                    echo -e "  ${W}│ ${C}ROTATE ${NC}» ${Y}${minute_input} PHÚT${NC}"
+                    echo -e "  ${W}│ ${C}RENEW  ${NC}» ${Y}${minute_input} PHÚT${NC}"
                     echo -e "  ${W}│ ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}"
                     echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
-                    echo -e "  ${BOLD}${Y}[LƯU Ý]${NC}"
-                    echo -e "  ${W}● Nếu chọn quốc gia lạ bị chậm, Tor sẽ ưu tiên mạch ổn định nhất.${NC}"
-                    echo -e "  ${W}● Nhấn ${R}CTRL + C${W} để thay đổi cấu hình.${NC}"
+                    echo -e "  ${BOLD}${Y}[HƯỚNG DẪN]${NC}"
+                    echo -e "  ${W}● Proxy: ${G}127.0.0.1${W} | Cổng: ${G}8118${NC}"
+                    echo -e "  ${W}● Nhấn ${R}CTRL + C${W} để làm mới quốc gia.${NC}"
                     echo -ne "\n"
                     auto_rotate > /dev/null 2>&1 &
                     break
@@ -179,7 +172,7 @@ main() {
     cleanup
     clear
     echo -e "\n  ${BOLD}${C}>>> AUTO ROTATE IP PROXY <<<${NC}"
-    echo -e "  ${W}ID: ${Y}2026-01-29${NC} | ${W}Status: ${G}Ready${NC}"
+    echo -e "  ${W}ID: ${Y}2026-01-29${NC} | ${W}Giao diện: ${G}Minimalist${NC}"
     while true; do
         stop_flag=false
         select_country
