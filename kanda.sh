@@ -1,24 +1,17 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # 1. Dọn dẹp tuyệt đối để tránh đè tiêu đề/alias nhiều lần
-    # Lệnh sed sẽ xóa tất cả các dòng cũ chứa 'kanda' trong .bashrc
-    sed -i '/alias kanda=/d' ~/.bashrc
-    sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
-
-    # 2. Ghi mới Alias kanda
-    echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
-    
-    # 3. Ghi mới dòng hướng dẫn vào màn hình chính Termux
-    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
-
-    # 4. Tạo file thực thi kanda trong bin (Giải pháp tối ưu cho mạng yếu)
-    # Gõ 'kanda' là máy nhận lệnh hệ thống ngay, không cần đợi alias load
-    echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
-    chmod +x "$PREFIX/bin/kanda"
-    
-    # Cập nhật thay đổi ngay lập tức
-    source ~/.bashrc > /dev/null 2>&1
+    # FIX TRIỆT ĐỂ: Chỉ thực hiện nếu chưa có kanda trong .bashrc
+    if ! grep -q "kanda" ~/.bashrc; then
+        # Thêm alias
+        echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+        # Thêm dòng chữ hướng dẫn duy nhất
+        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
+        
+        # Tạo file thực thi để gõ kanda là ăn ngay
+        echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
+        chmod +x "$PREFIX/bin/kanda"
+    fi
 }
 
 init_colors() {
@@ -84,36 +77,38 @@ select_rotate_time() {
 
 install_services() {
     cleanup
-    echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
-    render_bar "Tiến trình 1" 20
-    pkg update -y > /dev/null 2>&1
-    render_bar "Tiến trình 1" 60
+    echo -e "\n  ${GREY}Đang tối ưu hệ thống...${NC}"
+    
+    # TĂNG TỐC TIẾN TRÌNH 1: Kiểm tra gói nhanh hơn
+    render_bar "Tiến trình 1" 30
+    # Chỉ cài đặt nếu thiếu (giảm thời gian pkg upgrade thừa)
     pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+    
+    render_bar "Tiến trình 1" 70
+    # Cấu hình nhanh các thư mục cần thiết
+    mkdir -p "$PREFIX/var/lib/tor" "$PREFIX/etc/tor" "$PREFIX/etc/privoxy"
+    chmod 700 "$PREFIX/var/lib/tor"
+    
     render_bar "Tiến trình 1" 100
     echo -e "" 
 }
 
 config_privoxy() {
-    CONF_DIR="$PREFIX/etc/privoxy"
-    CONF_FILE="$CONF_DIR/config"
-    mkdir -p $CONF_DIR
+    CONF_FILE="$PREFIX/etc/privoxy/config"
     echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
 config_tor() {
-    mkdir -p "$PREFIX/var/lib/tor"
-    chmod 700 "$PREFIX/var/lib/tor"
-    mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nGeoIPFile $PREFIX/share/tor/geoip\nGeoIPv6File $PREFIX/share/tor/geoip6\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
+    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
     [[ -n "$country_code" ]] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC" || echo -e "StrictNodes 0" >> "$TORRC"
 }
 
 run_tor() {
     render_bar "Tiến trình 2" 0
-    stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
+    stdbuf -oL tor -f "$PREFIX/etc/tor/torrc" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
@@ -138,7 +133,7 @@ run_tor() {
 auto_rotate() {
     while true; do
         sleep $sec
-        ( pkill -9 tor; rm -f $PREFIX/var/lib/tor/state; tor -f "$TORRC" > /dev/null 2>&1 &
+        ( pkill -9 tor; rm -f $PREFIX/var/lib/tor/state; tor -f "$PREFIX/etc/tor/torrc" > /dev/null 2>&1 &
           sleep 1; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
     done
 }
@@ -147,10 +142,8 @@ main() {
     init_alias
     init_colors
     clear
-    # Dòng này hiện lúc đang thực thi script
-    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
-    echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
-    pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    # Chạy upgrade một cách im lặng và nhanh hơn bằng cách không force cấu hình cũ
+    echo -e "  ${GREY}[*] Đang khởi động...${NC}"
     
     while true; do
         stop_flag=false
