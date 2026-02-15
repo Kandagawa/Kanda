@@ -78,9 +78,12 @@ install_services() {
     sleep 1
     echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
     render_bar 10
-    pkg update -y > /dev/null 2>&1
+    # FIX DUY NHẤT: Cập nhật hệ thống & cài lại curl để fix lỗi link executable (không hiện log)
+    pkg update -y > /dev/null 2>&1 && pkg upgrade -y > /dev/null 2>&1
     render_bar 40
-    pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
+    # Cài đặt dịch vụ và reinstall curl để đồng bộ symbol (không hiện log)
+    pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+    pkg install curl --reinstall -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
 }
