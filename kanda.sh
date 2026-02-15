@@ -40,7 +40,7 @@ cleanup() {
 select_country() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Nhập mã (us, jp, all):${NC} ${YELLOW}"
+        printf "  ${GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
@@ -115,8 +115,8 @@ run_tor() {
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» Lệnh khởi động :${NC} ${PURPLE}kanda${NC}"
-                echo -e "  ${GREY}» Nhấn [CTRL+C]  : Đặt lại cấu hình${NC}\n"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}        : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[Z]${GREY}    : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
