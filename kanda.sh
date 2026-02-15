@@ -4,7 +4,8 @@ init_alias() {
     # Dùng đúng nguyên bản logic của mày: Bọc tất cả vào if grep để không bao giờ lặp lại
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
-        echo -e 'echo -e "\\n\\033[1;30m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
+        # Chuyển màu xám cũ sang màu xanh lá (1;32) cho đồng bộ
+        echo -e 'echo -e "\\n\\033[1;32m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
         
         # Tạo file thực thi trong bin nếu chưa có
         if [ ! -f "$PREFIX/bin/kanda" ]; then
@@ -18,10 +19,17 @@ init_alias() {
 }
 
 init_colors() {
-    # Chuyển hết sang mã Bold (1;...) để màu đậm và nét hơn
-    PURPLE='\033[1;38;5;141m'; CYAN='\033[1;36m'; GREEN='\033[1;32m'
-    YELLOW='\033[1;33m'; RED='\033[1;31m'; WHITE='\033[1;37m'
-    GREY='\033[1;30m'; BLUE='\033[1;34m'; NC='\033[0m'
+    # THAY ĐỔI MÀU SẮC THEO Ý MÀY
+    # Tím -> Cam (1;38;5;208), Nâu/Xám -> Xanh lá (1;32)
+    PURPLE='\033[1;38;5;208m';  # Màu Cam (thay cho Tím)
+    CYAN='\033[1;36m'; 
+    GREEN='\033[1;32m';         # Xanh lá đậm
+    YELLOW='\033[1;33m'; 
+    RED='\033[1;31m'; 
+    WHITE='\033[1;37m';
+    GREY='\033[1;32m';          # Xanh lá (thay cho Nâu/Xám)
+    BLUE='\033[1;34m'; 
+    NC='\033[0m'
 }
 
 render_bar() {
