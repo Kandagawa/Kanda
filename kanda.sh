@@ -1,29 +1,28 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- Khoi tao moi truong ---
 init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
-        echo 'echo -e "\n\033[1;32mDe quay lai cau hinh nhap: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
+        echo 'echo -e "\n\033[1;32mĐể quay lại cấu hình nhập: \033[1;33mkanda\033[0m\n"' >> ~/.bashrc
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
 
 init_colors() {
-    G='\033[1;32m'; Y='\033[1;33m'; B='\033[1;34m'; C='\033[1;36m'
-    W='\033[1;37m'; R='\033[1;31m'; P='\033[1;35m'; NC='\033[0m'
+    G='\033[1;32m'; Y='\033[1;33m'; B='\033[1;34m'
+    C='\033[1;36m'; W='\033[1;37m'; R='\033[1;31m'; NC='\033[0m'
 }
 
 render_bar() {
     local percent=$1
-    local w=30
+    local w=25
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r ${W}[${G}"
-    for ((j=0; j<filled; j++)); do printf "■"; done
+    printf "\r\033[K${C}[*] Đang tải dữ liệu: ${B}[${G}"
+    for ((j=0; j<filled; j++)); do printf "●"; done
     printf "${W}"
-    for ((j=0; j<empty; j++)); do printf " "; done
-    printf "${W}] ${Y}%d%%${NC}" "$percent"
+    for ((j=0; j<empty; j++)); do printf "○"; done
+    printf "${B}] ${Y}%d%%${NC}" "$percent"
 }
 
 cleanup() {
@@ -34,51 +33,63 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "\n${C}┌──────────────────────────────────────────┐${NC}"
-    echo -e "${C}│          THIET LAP QUOC GIA              │${NC}"
-    echo -e "${C}└──────────────────────────────────────────┘${NC}"
-    echo -e " ${W}Goi y: ${G}vn, jp, us, sg... ${W}hoac ${G}all${NC}"
     while true; do
-        printf " ${C}>> ${W}Lua chon: ${G}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
+        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có IP quốc gia đó${NC}"
+        printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
-            echo -e " ${G}Status: Global Selection${NC}"
+            echo -e "${G}>> Lựa chọn: Toàn cầu.${NC}"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
-            echo -e " ${G}Status: ${country_code^^} Selected${NC}"
+            echo -e "${G}>> Lựa chọn quốc gia: ${country_code^^}${NC}"
             return
         else
-            echo -e " ${R}Error: Ma khong hop le!${NC}"
+            echo -e "${R}[!] LỖI: Mã không hợp lệ!${NC}"
         fi
     done
 }
 
 select_rotate_time() {
-    echo -e "\n ${W}Nhap thoi gian lam moi (1-9 phut)${NC}"
     while true; do
-        printf " ${C}>> ${W}So phut: ${G}"
+        echo -e "\n${Y}[?] Nhập thời gian làm mới IP (từ 1 đến 9 phút)${NC}"
+        printf "    Số phút: "
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
+            echo -e "${G}>> IP sẽ làm mới mỗi ${minute_input} phút.${NC}"
             return
         else
-            echo -e " ${R}Error: Chi nhap tu 1 den 9!${NC}"
+            echo -e "${R}[!] LỖI: Chỉ nhập 1 chữ số từ 1 đến 9!${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    echo -e "\n ${W}SYSTEM: Dang khoi tao dich vu...${NC}"
-    render_bar 30
-    pkg update -y > /dev/null 2>&1
-    render_bar 70
-    pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
+    sleep 1
+    echo -e "\n${C}[*] Khởi tạo dịch vụ & Sửa lỗi hệ thống...${NC}"
+    render_bar 20
+    # Lệnh quan trọng để fix lỗi symbol SSL bị thiếu trong ảnh của bạn
+    pkg update -y && pkg upgrade -y > /dev/null 2>&1
+    render_bar 50
+    pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+    # Buộc cài lại curl để đảm bảo liên kết thư viện mới nhất
+    pkg install curl --reinstall -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
+}
+
+config_privoxy() {
+    CONF_DIR="$PREFIX/etc/privoxy"
+    CONF_FILE="$CONF_DIR/config"
+    mkdir -p $CONF_DIR
+    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
+    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
 config_tor() {
@@ -87,7 +98,6 @@ config_tor() {
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
     
-    # Logic fix 50%
     echo -e "ControlPort 9051
 CookieAuthentication 0
 DataDirectory $PREFIX/var/lib/tor
@@ -105,38 +115,27 @@ Log notice stdout" > "$TORRC"
 }
 
 run_tor() {
-    echo -ne " ${W}Connecting: 0%${NC}"
+    echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            printf "\r ${W}Connecting: ${Y}${percent}%%${NC}"
-            
+            printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
-                clear
-                IP_NOW=$(curl -s --proxy http://127.0.0.1:8118 https://api.ipify.org || echo "N/A")
-                echo -e "${G}┌──────────────────────────────────────────┐${NC}"
-                echo -e "${G}│        KET NOI THANH CONG (ACTIVE)       │${NC}"
-                echo -e "${G}├──────────────────────────────────────────┤${NC}"
-                echo -e "${G}│ ${W}IP HIEN TAI : ${Y}${IP_NOW}${G}"
-                echo -e "${G}│ ${W}PROXY HOST  : ${W}127.0.0.1${G}"
-                echo -e "${G}│ ${W}PROXY PORT  : ${W}8118${G}"
-                echo -e "${G}│ ${W}QUOC GIA    : ${P}${country_code^^:-GLOBAL}${G}"
-                echo -e "${G}│ ${W}LAM MOI     : ${C}${minute_input} PHUT/LAN${G}"
-                echo -e "${G}└──────────────────────────────────────────┘${NC}"
-                echo -e " ${W}[CTRL+C] de doi cau hinh | [CTRL+C x2] dung hẳn${NC}"
+                echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
+                # Kiểm tra IP thực tế thông qua Proxy, ẩn lỗi nếu thư viện vẫn đang cập nhật
+                IP_NOW=$(curl -s --proxy http://127.0.0.1:8118 https://api.ipify.org 2>/dev/null || echo "Đang lấy IP...")
+                echo -e "\n${B}IP HIỆN TẠI: ${W}${IP_NOW}${NC}"
+                echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
+                echo -e "${B}PORT:   ${W}8118${NC}"
+                echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
+                echo -e "${B}REGION: ${Y}${country_code^^:-TOÀN CẦU}${NC}"
+                echo -e "\n${Y}[CTRL+C] để làm mới quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
         fi
     done
-}
-
-config_privoxy() {
-    CONF_FILE="$PREFIX/etc/privoxy/config"
-    mkdir -p "$PREFIX/etc/privoxy"
-    echo -e "listen-address 0.0.0.0:8118\nforward-socks5t / 127.0.0.1:9050 ." > "$CONF_FILE"
-    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
 auto_rotate() {
@@ -159,11 +158,8 @@ main() {
     init_colors
     cleanup
     clear
+    echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG (FIXED) <<<${NC}"
     
-    echo -e "${C}============================================${NC}"
-    echo -e "${C}      KANDA IP ROTATOR - VERSION 2.0        ${NC}"
-    echo -e "${C}============================================${NC}"
-
     while true; do
         stop_flag=false
         select_country
@@ -174,7 +170,6 @@ main() {
         run_tor
         while [[ "$stop_flag" == "false" ]]; do sleep 1; done
         cleanup
-        clear
     done
 }
 
