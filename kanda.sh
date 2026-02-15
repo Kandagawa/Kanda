@@ -24,7 +24,7 @@ render_bar() {
     local w=20
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r  ${W}── ${C}Tiến trình: ${B}[${G}"
+    printf "\r  ${W}── ${C}Processing ${B}[${G}"
     for ((j=0; j<filled; j++)); do printf "■"; done
     printf "${W}"
     for ((j=0; j<empty; j++)); do printf " "; done
@@ -39,49 +39,53 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "\n  ${BOLD}${W}┌────────────────────────────────────────┐${NC}"
-    echo -e "  ${W}│        ${C}THIẾT LẬP VÙNG QUỐC GIA         ${W}│${NC}"
-    echo -e "  ${W}└────────────────────────────────────────┘${NC}"
-    echo -e "  ${W}● ${C}Gợi ý: ${G}us, jp, sg, de, ca... ${W}hoặc ${Y}all${NC}"
     while true; do
-        printf "  ${BOLD}${G}»${NC} ${W}Nhập mã: ${NC}"
+        echo -e "\n  ${BOLD}${W}┌──────────────────────────────────────────┐${NC}"
+        echo -e "  ${W}│         ${C}THIẾT LẬP VÙNG QUỐC GIA          ${W}│${NC}"
+        echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
+        echo -e "  ${W}● Gợi ý: ${G}jp, us, sg, ca... ${W}hoặc ${Y}all${NC}"
+        printf "  ${BOLD}${G}»${NC} ${W}Mã quốc gia: ${NC}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
+            echo -e "  ${W}── ${G}Lựa chọn: Toàn cầu${NC}"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
+            echo -e "  ${W}── ${G}Lựa chọn: ${country_code^^}${NC}"
             return
         else
-            echo -e "  ${R}✘ Lỗi: Mã quốc gia phải là 2 ký tự!${NC}"
+            echo -e "  ${R}[!] Lỗi: Mã quốc gia không hợp lệ!${NC}"
         fi
     done
 }
 
 select_rotate_time() {
-    echo -e "\n  ${BOLD}${W}┌────────────────────────────────────────┐${NC}"
-    echo -e "  ${W}│       ${C}THỜI GIAN LÀM MỚI (PHÚT)         ${W}│${NC}"
-    echo -e "  ${W}└────────────────────────────────────────┘${NC}"
-    echo -e "  ${W}● ${C}Lưu ý: ${Y}Nên chọn từ 1 đến 5 phút${NC}"
     while true; do
+        echo -e "\n  ${BOLD}${W}┌──────────────────────────────────────────┐${NC}"
+        echo -e "  ${W}│         ${C}THỜI GIAN XOAY IP (PHÚT)         ${W}│${NC}"
+        echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
+        echo -e "  ${W}● Gợi ý: ${Y}Nên chọn từ 1 đến 5 phút${NC}"
         printf "  ${BOLD}${G}»${NC} ${W}Số phút: ${NC}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
+            echo -e "  ${W}── ${G}Làm mới mỗi: ${minute_input} phút${NC}"
             return
         else
-            echo -e "  ${R}✘ Lỗi: Vui lòng nhập từ 1 đến 9!${NC}"
+            echo -e "  ${R}[!] Lỗi: Chỉ nhập số từ 1 đến 9!${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    echo -ne "\n"
-    render_bar 30
+    sleep 1
+    echo -e "\n  ${C}── Đang chuẩn bị dịch vụ...${NC}"
+    render_bar 10
     pkg update -y > /dev/null 2>&1
-    render_bar 70
+    render_bar 40
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
@@ -106,7 +110,12 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     mkdir -p $PREFIX/var/lib/tor
     chmod 700 $PREFIX/var/lib/tor
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nDataDirectory $PREFIX/var/lib/tor\nLog notice stdout" > "$TORRC"
+    echo -e "ControlPort 9051
+CookieAuthentication 0
+MaxCircuitDirtiness $sec
+CircuitBuildTimeout 10
+DataDirectory $PREFIX/var/lib/tor
+Log notice stdout" > "$TORRC"
     if [ -n "$country_code" ]; then
         echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
     else
@@ -115,25 +124,25 @@ config_tor() {
 }
 
 run_tor() {
-    printf "  ${W}── ${C}Đang tạo mạch kết nối: ${Y}0%%${NC}"
+    printf "  ${W}── ${C}Khởi tạo mạch Tor: ${Y}0%%${NC}"
     stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
             if [ -n "$percent" ]; then
-                printf "\r  ${W}── ${C}Đang tạo mạch kết nối: ${Y}${percent}%%${NC}"
+                printf "\r  ${W}── ${C}Khởi tạo mạch Tor: ${Y}${percent}%%${NC}"
                 if [ "$percent" -eq 100 ]; then
                     clear
-                    echo -e "\n  ${G}${BOLD}✔ KẾT NỐI ĐÃ SẴN SÀNG!${NC}"
-                    echo -e "  ${W}┌────────────────────────────────────────┐${NC}"
-                    echo -e "  ${W}│  ${C}REGION ${W}» ${Y}${country_code^^:-GLOBAL}${NC}"
-                    echo -e "  ${W}│  ${C}RENEW  ${W}» ${Y}${minute_input} PHÚT${NC}"
-                    echo -e "  ${W}│  ${C}PROXY  ${W}» ${G}127.0.0.1:8118${NC}"
-                    echo -e "  ${W}└────────────────────────────────────────┘${NC}"
-                    echo -e "  ${BOLD}${Y}[LƯU Ý QUAN TRỌNG]${NC}"
-                    echo -e "  ${W}● Dán ${G}127.0.0.1:8118${W} vào app cần dùng Proxy.${NC}"
-                    echo -e "  ${W}● IP sẽ tự động thay đổi sau mỗi ${Y}${minute_input} phút.${NC}"
-                    echo -e "  ${W}● Nhấn ${R}CTRL+C${W} để thay đổi cấu hình.${NC}\n"
+                    echo -e "\n  ${G}${BOLD}✔ KẾT NỐI HOÀN TẤT!${NC}"
+                    echo -e "  ${W}┌──────────────────────────────────────────┐${NC}"
+                    echo -e "  ${W}│ ${C}REGION ${NC}» ${Y}${country_code^^:-GLOBAL}${NC}"
+                    echo -e "  ${W}│ ${C}ROTATE ${NC}» ${Y}${minute_input} PHÚT${NC}"
+                    echo -e "  ${W}│ ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}"
+                    echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
+                    echo -e "  ${BOLD}${Y}[LƯU Ý]${NC}"
+                    echo -e "  ${W}● Nhấn ${R}CTRL + C${W} để thay đổi cấu hình.${NC}"
+                    echo -e "  ${W}● Nhấn ${R}CTRL + C + Z${W} để dừng hẳn.${NC}"
+                    echo -ne "\n"
                     auto_rotate > /dev/null 2>&1 &
                     break
                 fi
@@ -162,8 +171,8 @@ main() {
     init_colors
     cleanup
     clear
-    echo -e "  ${BOLD}${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
-    echo -e "  ${R}Ghi chú: Đảm bảo kết nối mạng ổn định.${NC}"
+    echo -e "\n  ${BOLD}${C}>>> AUTO ROTATE IP PROXY <<<${NC}"
+    echo -e "  ${W}ID: ${Y}2026-01-29${NC} | ${W}Status: ${G}Ready${NC}"
     while true; do
         stop_flag=false
         select_country
