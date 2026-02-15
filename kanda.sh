@@ -24,7 +24,7 @@ render_bar() {
     local w=20
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r${W}── ${C}Loading ${B}[${G}"
+    printf "\r ${W}── ${C}Loading ${B}[${G}"
     for ((j=0; j<filled; j++)); do printf "■"; done
     printf "${W}"
     for ((j=0; j<empty; j++)); do printf " "; done
@@ -39,7 +39,7 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "${W}┌──────────────────────────────────────────┐${NC}"
+    echo -e "\n${W}┌──────────────────────────────────────────┐${NC}"
     echo -e "${W}│  ${BOLD}${C}CHỌN QUỐC GIA ${NC}${W}(jp, us, sg, all...)     │${NC}"
     echo -e "${W}└──────────────────────────────────────────┘${NC}"
     while true; do
@@ -127,14 +127,13 @@ run_tor() {
                 printf "\r ${W}── ${C}Đang tạo mạch kết nối: ${Y}${percent}%%${NC}"
                 if [ "$percent" -eq 100 ]; then
                     clear
-                    echo -e "${G}${BOLD}  ✔ KẾT NỐI HOÀN TẤT${NC}"
-                    echo -e "${W}  ──────────────────────────────${NC}"
-                    echo -e "  ${C}REGION ${NC}» ${Y}${country_code^^:-GLOBAL}${NC}"
-                    echo -e "  ${C}ROTATE ${NC}» ${Y}${minute_input} MINUTES${NC}"
-                    echo -e "  ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}"
-                    echo -e "${W}  ──────────────────────────────${NC}"
-                    echo -e "  ${R}● ${W}Nhấn ${R}CTRL+C${W} để thay đổi cấu hình${NC}"
-                    echo -ne "\n"
+                    echo -e "\n  ${G}${BOLD}✔ KẾT NỐI HOÀN TẤT${NC}"
+                    echo -e "  ${W}┌──────────────────────────────┐${NC}"
+                    echo -e "  ${W}│ ${C}REGION ${NC}» ${Y}${country_code^^:-GLOBAL}${NC}          "
+                    echo -e "  ${W}│ ${C}ROTATE ${NC}» ${Y}${minute_input} PHÚT${NC}            "
+                    echo -e "  ${W}│ ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}     "
+                    echo -e "  ${W}└──────────────────────────────┘${NC}"
+                    echo -e "  ${R}●${NC} ${W}Nhấn ${R}CTRL+C${W} để thay đổi${NC}\n"
                     return 0
                 fi
             fi
@@ -161,7 +160,6 @@ main() {
         
         while [[ "$stop_flag" == "false" ]]; do
             sleep 5
-            # Tự động rotate ngầm theo chu kỳ
             (
                 pkill -9 tor
                 rm -f $PREFIX/var/lib/tor/state
