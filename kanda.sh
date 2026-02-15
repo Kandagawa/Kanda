@@ -116,12 +116,18 @@ Log notice stdout" > "$TORRC"
 
 run_tor() {
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
-    stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
+    # Bỏ 2>/dev/null để thấy log nếu có lỗi kết nối
+    stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | tr -d '%')
-            printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
-            if [ "$percent" -eq 100 ]; then
+            # Sử dụng sed để lấy số phần trăm (ổn định hơn grep -oP trên Termux)
+            percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
+            
+            if [ -n "$percent" ]; then
+                printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
+            fi
+            
+            if [ "$percent" -eq 100 ] 2>/dev/null; then
                 echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
                 echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
