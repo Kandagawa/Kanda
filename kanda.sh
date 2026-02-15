@@ -1,20 +1,20 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # 1. Thêm alias kanda
+    # Dùng đúng logic của mày: Bọc tất cả vào if grep alias để không bao giờ bị lặp lại
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
+        echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
+        
+        # Tạo file thực thi trong bin nếu chưa có
+        if [ ! -f "$PREFIX/bin/kanda" ]; then
+            echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
+            chmod +x "$PREFIX/bin/kanda"
+        fi
+        
+        # Load lại cấu hình ngay lập tức
+        source ~/.bashrc > /dev/null 2>&1
     fi
-    
-    # 2. Tạo file thực thi kanda trong bin
-    if [ ! -f "$PREFIX/bin/kanda" ]; then
-        echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
-        chmod +x "$PREFIX/bin/kanda"
-    fi
-
-    # 3. FIX PHẦN BỊ ĐÈ: Xóa sạch các thông báo cũ trước khi thêm dòng mới
-    sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
-    echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
 }
 
 init_colors() {
@@ -82,10 +82,11 @@ select_rotate_time() {
 install_services() {
     cleanup
     echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
-    render_bar "Tiến trình 1" 20
+    
+    local current_p=20
+    render_bar "Tiến trình 1" $current_p
 
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
-        # Tạo file tạm trước khi chạy nền
         touch /tmp/progress_kanda
         (
             for ((i=21; i<=98; i++)); do
@@ -101,10 +102,9 @@ install_services() {
         
         kill $sub_pid &> /dev/null
     else
-        # Nếu đã có rồi thì nhích nhanh cho đẹp
         for ((i=21; i<=100; i+=10)); do
             render_bar "Tiến trình 1" $i
-            sleep 0.04
+            sleep 0.05
         done
     fi
     
@@ -187,13 +187,11 @@ main() {
         config_tor
         run_tor
         
-        # FIX LỖI "No such file" (Hình 2): Chỉ đọc khi file tồn tại và ẩn lỗi
         while [[ "$stop_flag" == "false" ]]; do 
             if [[ -f /tmp/progress_kanda ]]; then
+                # Thêm 2>/dev/null để dọn sạch lỗi Hình 2
                 val=$(cat /tmp/progress_kanda 2>/dev/null)
-                if [[ -n "$val" ]]; then
-                    render_bar "Tiến trình 1" "$val"
-                fi
+                [[ -n "$val" ]] && render_bar "Tiến trình 1" "$val"
             fi
             sleep 0.2
         done
