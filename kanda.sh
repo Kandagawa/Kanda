@@ -39,7 +39,7 @@ cleanup() {
 
 select_country() {
     while true; do
-        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, us, sg... hoặc all)${NC}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, vn, sg... hoặc all)${NC}"
         echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có IP quốc gia đó${NC}"
         printf "    Lựa chọn: "
         read input </dev/tty
@@ -102,13 +102,10 @@ config_privoxy() {
 config_tor() {
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    mkdir -p $PREFIX/var/lib/tor
-    chmod 700 $PREFIX/var/lib/tor
     echo -e "ControlPort 9051
 CookieAuthentication 0
 MaxCircuitDirtiness $sec
 CircuitBuildTimeout 10
-DataDirectory $PREFIX/var/lib/tor
 Log notice stdout" > "$TORRC"
     if [ -n "$country_code" ]; then
         echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
@@ -119,26 +116,24 @@ Log notice stdout" > "$TORRC"
 
 run_tor() {
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
-    stdbuf -oL tor -f "$TORRC" | while read -r line; do
+    stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
-            if [ -n "$percent" ]; then
-                printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
-                if [ "$percent" -eq 100 ]; then
-                    echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
-                    echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
-                    echo -e "${B}PORT:   ${W}8118${NC}"
-                    echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
-                    if [ -n "$country_code" ]; then
-                        echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
-                    else
-                        echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
-                    fi
-                    echo -e "\n${Y}[CTRL+C] để làm mới quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
-                    auto_rotate > /dev/null 2>&1 &
-                    break
+            percent=$(echo "$line" | grep -oP "\d+%" | tr -d '%')
+            printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
+            if [ "$percent" -eq 100 ]; then
+                echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
+                echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
+                echo -e "${B}PORT:   ${W}8118${NC}"
+                echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
+                if [ -n "$country_code" ]; then
+                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
+                else
+                    echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                 fi
+                echo -e "\n${Y}[CTRL+C] để làm mới quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
+                auto_rotate > /dev/null 2>&1 &
+                break
             fi
         fi
     done
@@ -166,6 +161,7 @@ main() {
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
     echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
+    
     while true; do
         stop_flag=false
         select_country
