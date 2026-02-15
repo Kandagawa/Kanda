@@ -16,17 +16,18 @@ init_colors() {
     W='\033[1;37m'
     R='\033[1;31m'
     NC='\033[0m'
+    BOLD='\033[1m'
 }
 
 render_bar() {
     local percent=$1
-    local w=25
+    local w=20
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r\033[K${C}[*] Đang tải dữ liệu: ${B}[${G}"
-    for ((j=0; j<filled; j++)); do printf "●"; done
+    printf "\r${W}── ${C}Loading ${B}[${G}"
+    for ((j=0; j<filled; j++)); do printf "■"; done
     printf "${W}"
-    for ((j=0; j<empty; j++)); do printf "○"; done
+    for ((j=0; j<empty; j++)); do printf " "; done
     printf "${B}] ${Y}%d%%${NC}" "$percent"
 }
 
@@ -38,48 +39,47 @@ cleanup() {
 }
 
 select_country() {
+    echo -e "${W}┌──────────────────────────────────────────┐${NC}"
+    echo -e "${W}│  ${BOLD}${C}CHỌN QUỐC GIA ${NC}${W}(jp, us, sg, all...)     │${NC}"
+    echo -e "${W}└──────────────────────────────────────────┘${NC}"
     while true; do
-        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, us, sg... hoặc all)${NC}"
-        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có IP quốc gia đó${NC}"
-        printf "    Lựa chọn: "
+        printf " ${G}»${NC} ${W}Nhập mã: ${NC}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
-            echo -e "${G}>> Lựa chọn: Toàn cầu.${NC}"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
-            echo -e "${G}>> Lựa chọn quốc gia: ${country_code^^}${NC}"
             return
         else
-            echo -e "${R}[!] LỖI: Mã không hợp lệ!${NC}"
+            echo -e " ${R}✘ Lỗi: Mã quốc gia không hợp lệ!${NC}"
         fi
     done
 }
 
 select_rotate_time() {
+    echo -e "\n${W}┌──────────────────────────────────────────┐${NC}"
+    echo -e "${W}│  ${BOLD}${C}THỜI GIAN LÀM MỚI ${NC}${W}(1 - 9 phút)        │${NC}"
+    echo -e "${W}└──────────────────────────────────────────┘${NC}"
     while true; do
-        echo -e "\n${Y}[?] Nhập thời gian làm mới IP (từ 1 đến 9 phút)${NC}"
-        printf "    Số phút: "
+        printf " ${G}»${NC} ${W}Số phút: ${NC}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
-            echo -e "${G}>> IP sẽ làm mới mỗi ${minute_input} phút.${NC}"
             return
         else
-            echo -e "${R}[!] LỖI: Chỉ nhập 1 chữ số từ 1 đến 9!${NC}"
+            echo -e " ${R}✘ Lỗi: Chỉ nhập từ 1 đến 9!${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    sleep 1
-    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
-    render_bar 10
+    echo -ne "\n"
+    render_bar 20
     pkg update -y > /dev/null 2>&1
-    render_bar 40
+    render_bar 60
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
@@ -118,22 +118,23 @@ Log notice stdout" > "$TORRC"
 }
 
 run_tor() {
-    echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
+    printf " ${W}── ${C}Đang tạo mạch kết nối: ${Y}0%%${NC}"
     stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
             if [ -n "$percent" ]; then
-                printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
+                printf "\r ${W}── ${C}Đang tạo mạch kết nối: ${Y}${percent}%%${NC}"
                 if [ "$percent" -eq 100 ]; then
-                    echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
-                    if [ -n "$country_code" ]; then
-                        echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
-                    else
-                        echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
-                    fi
-                    echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
-                    echo -e "\n${Y}[CTRL+C] để đổi cấu hình${NC}"
+                    clear
+                    echo -e "${G}${BOLD}  ✔ KẾT NỐI HOÀN TẤT${NC}"
+                    echo -e "${W}  ──────────────────────────────${NC}"
+                    echo -e "  ${C}REGION ${NC}» ${Y}${country_code^^:-GLOBAL}${NC}"
+                    echo -e "  ${C}ROTATE ${NC}» ${Y}${minute_input} MINUTES${NC}"
+                    echo -e "  ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}"
+                    echo -e "${W}  ──────────────────────────────${NC}"
+                    echo -e "  ${R}● ${W}Nhấn ${R}CTRL+C${W} để thay đổi cấu hình${NC}"
+                    echo -ne "\n"
                     return 0
                 fi
             fi
@@ -148,8 +149,6 @@ main() {
     init_colors
     cleanup
     clear
-    echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
-    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     
     while true; do
         stop_flag=false
@@ -160,25 +159,19 @@ main() {
         config_tor
         run_tor
         
-        countdown=$sec
         while [[ "$stop_flag" == "false" ]]; do
-            m=$((countdown / 60))
-            s=$((countdown % 60))
-            printf "\r\033[K${B}TIẾN TRÌNH: ${G}ĐANG CHẠY${NC} | ${B}XOAY IP SAU: ${R}%02d:%02d${NC}" "$m" "$s"
-            sleep 1
-            ((countdown--))
-            
-            if [ $countdown -lt 0 ]; then
-                echo -e "\n${C}[*] Đang xoay IP mới...${NC}"
+            sleep 5
+            # Tự động rotate ngầm theo chu kỳ
+            (
                 pkill -9 tor
                 rm -f $PREFIX/var/lib/tor/state
                 tor -f "$TORRC" > /dev/null 2>&1 &
-                sleep 2
-                echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
-                countdown=$sec
-            fi
+                sleep 1
+                echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
+            ) > /dev/null 2>&1
         done
         cleanup
+        clear
     done
 }
 
