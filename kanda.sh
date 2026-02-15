@@ -23,7 +23,7 @@ render_bar() {
     local w=25
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r\033[K${C}[*] Đang tải dữ liệu: ${B}[${G}"
+    printf "\r\033[K${C}[*] Đang xử lý hệ thống: ${B}[${G}"
     for ((j=0; j<filled; j++)); do printf "●"; done
     printf "${W}"
     for ((j=0; j<empty; j++)); do printf "○"; done
@@ -76,11 +76,18 @@ select_rotate_time() {
 install_services() {
     cleanup
     sleep 1
-    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
-    render_bar 10
-    pkg update -y > /dev/null 2>&1
-    render_bar 40
+    echo -e "\n${C}[*] Đang đồng bộ thư viện và cài đặt dịch vụ...${NC}"
+    echo -e "${Y}(Quá trình này giúp sửa lỗi 'CANNOT LINK EXECUTABLE' của curl)${NC}"
+    
+    render_bar 20
+    # Cập nhật toàn bộ package để sửa lỗi link library ssl
+    pkg update -y && pkg upgrade -y > /dev/null 2>&1
+    
+    render_bar 60
+    # Cài đặt và cài lại curl để đảm bảo liên kết thư viện mới nhất
     pkg install tor privoxy curl netcat-openbsd -y > /dev/null 2>&1
+    pkg install curl --reinstall -y > /dev/null 2>&1
+    
     render_bar 100
     echo -e "\n"
 }
@@ -89,24 +96,16 @@ config_privoxy() {
     CONF_DIR="$PREFIX/etc/privoxy"
     CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    if [ ! -f "$CONF_FILE" ]; then
-        echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
-    else
-        sed -i 's/listen-address  127.0.0.1:8118/listen-address  0.0.0.0:8118/g' "$CONF_FILE"
-    fi
-    sed -i '/forward-socks5t/d' "$CONF_FILE"
+    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
     echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
 config_tor() {
-    # Fix lỗi kẹt 50%: Cấp quyền và chỉ định DataDirectory
     mkdir -p "$PREFIX/var/lib/tor"
     chmod 700 "$PREFIX/var/lib/tor"
-    
     TORRC="$PREFIX/etc/tor/torrc"
     
-    # Cấu hình cốt lõi kèm Fix GeoIP
     echo -e "ControlPort 9051
 CookieAuthentication 0
 DataDirectory $PREFIX/var/lib/tor
@@ -125,7 +124,6 @@ Log notice stdout" > "$TORRC"
 
 run_tor() {
     echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
-    # Đã gỡ bỏ 2>/dev/null để theo dõi nếu có lỗi phát sinh
     stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -133,15 +131,16 @@ run_tor() {
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
-                echo -e "\n${B}IP HIỆN TẠI: ${W}$(curl -s --proxy http://127.0.0.1:8118 https://api.ipify.org)${NC}"
+                
+                # Sử dụng cơ chế kiểm tra IP an toàn để tránh crash giao diện
+                CURRENT_IP=$(curl -s --proxy http://127.0.0.1:8118 https://api.ipify.org 2>/dev/null || echo "Đang lấy...")
+                
+                echo -e "\n${B}IP HIỆN TẠI: ${W}${CURRENT_IP}${NC}"
                 echo -e "${B}HOST:   ${W}127.0.0.1${NC}"
                 echo -e "${B}PORT:   ${W}8118${NC}"
                 echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
-                if [ -n "$country_code" ]; then
-                    echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
-                else
-                    echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
-                fi
+                echo -e "${B}REGION: ${Y}${country_code^^:-TOÀN CẦU}${NC}"
+                
                 echo -e "\n${Y}[CTRL+C] để đổi quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
                 auto_rotate > /dev/null 2>&1 &
                 break
@@ -171,7 +170,6 @@ main() {
     cleanup
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG (FIXED) <<<${NC}"
-    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     
     while true; do
         stop_flag=false
