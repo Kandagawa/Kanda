@@ -16,18 +16,17 @@ init_colors() {
     W='\033[1;37m'
     R='\033[1;31m'
     NC='\033[0m'
-    BOLD='\033[1m'
 }
 
 render_bar() {
     local percent=$1
-    local w=20
+    local w=25
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r  ${W}── ${C}Đang tải: ${B}[${G}"
-    for ((j=0; j<filled; j++)); do printf "■"; done
+    printf "\r\033[K${C}[*] Đang tải dữ liệu: ${B}[${G}"
+    for ((j=0; j<filled; j++)); do printf "●"; done
     printf "${W}"
-    for ((j=0; j<empty; j++)); do printf " "; done
+    for ((j=0; j<empty; j++)); do printf "○"; done
     printf "${B}] ${Y}%d%%${NC}" "$percent"
 }
 
@@ -40,39 +39,36 @@ cleanup() {
 
 select_country() {
     while true; do
-        echo -e "\n  ${BOLD}${W}┌──────────────────────────────────────────┐${NC}"
-        echo -e "  ${W}│         ${C}THIẾT LẬP VÙNG QUỐC GIA          ${W}│${NC}"
-        echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
-        echo -e "  ${W}● Gợi ý: ${G}jp, us, sg, de, ca... ${W}hoặc ${Y}all${NC}"
-        printf "  ${BOLD}${G}»${NC} ${W}Mã quốc gia: ${NC}"
+        echo -e "\n${Y}[?] Nhập mã quốc gia (vd: jp, us, sg... hoặc all)${NC}"
+        echo -e "\n${R}[CTRL+C] để quay lại nếu bị treo vì sai mã hoặc không có IP quốc gia đó${NC}"
+        printf "    Lựa chọn: "
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
-            display_region="TOÀN CẦU"
+            echo -e "${G}>> Lựa chọn: Toàn cầu.${NC}"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
-            display_region="${country_code^^}"
+            echo -e "${G}>> Lựa chọn quốc gia: ${country_code^^}${NC}"
             return
         else
-            echo -e "  ${R}[!] LỖI: Mã không hợp lệ!${NC}"
+            echo -e "${R}[!] LỖI: Mã không hợp lệ!${NC}"
         fi
     done
 }
 
 select_rotate_time() {
     while true; do
-        echo -e "\n  ${BOLD}${W}┌──────────────────────────────────────────┐${NC}"
-        echo -e "  ${W}│         ${C}THỜI GIAN XOAY IP (PHÚT)         ${W}│${NC}"
-        echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
-        printf "  ${BOLD}${G}»${NC} ${W}Số phút (1-9): ${NC}"
+        echo -e "\n${Y}[?] Nhập thời gian làm mới IP (từ 1 đến 9 phút)${NC}"
+        printf "    Số phút: "
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
+            echo -e "${G}>> IP sẽ làm mới mỗi ${minute_input} phút.${NC}"
             return
         else
-            echo -e "  ${R}[!] LỖI: Chỉ nhập từ 1 đến 9!${NC}"
+            echo -e "${R}[!] LỖI: Chỉ nhập 1 chữ số từ 1 đến 9!${NC}"
         fi
     done
 }
@@ -80,7 +76,7 @@ select_rotate_time() {
 install_services() {
     cleanup
     sleep 1
-    echo -e "\n  ${C}── Đang khởi tạo dịch vụ...${NC}"
+    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
     render_bar 10
     pkg update -y > /dev/null 2>&1
     render_bar 40
@@ -108,7 +104,6 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     mkdir -p $PREFIX/var/lib/tor
     chmod 700 $PREFIX/var/lib/tor
-    # Giữ nguyên logic cấu hình của bạn
     echo -e "ControlPort 9051
 CookieAuthentication 0
 MaxCircuitDirtiness $sec
@@ -116,33 +111,31 @@ CircuitBuildTimeout 10
 DataDirectory $PREFIX/var/lib/tor
 Log notice stdout" > "$TORRC"
     if [ -n "$country_code" ]; then
-        # Để chạy được 100% không bị treo, ta dùng StrictNodes 0
-        echo -e "ExitNodes {$country_code}\nStrictNodes 0" >> "$TORRC"
+        echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
     else
         echo -e "StrictNodes 0" >> "$TORRC"
     fi
 }
 
 run_tor() {
-    printf "  ${W}── ${C}Thiết lập mạch kết nối: ${Y}0%%${NC}"
+    echo -ne "${C}[*] Thiết lập mạch kết nối: 0%${NC}"
     stdbuf -oL tor -f "$TORRC" | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | sed -n 's/.*Bootstrapped \([0-9]\{1,3\}\)%.*/\1/p')
             if [ -n "$percent" ]; then
-                printf "\r  ${W}── ${C}Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
+                printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
                 if [ "$percent" -eq 100 ]; then
-                    clear
-                    echo -e "\n  ${G}${BOLD}✔ KẾT NỐI ĐÃ SẴN SÀNG!${NC}"
-                    echo -e "  ${W}┌──────────────────────────────────────────┐${NC}"
-                    echo -e "  ${W}│ ${C}REGION ${NC}» ${Y}${display_region}${NC}"
-                    echo -e "  ${W}│ ${C}RENEW  ${NC}» ${Y}${minute_input} PHÚT${NC}"
-                    echo -e "  ${W}│ ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}"
-                    echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
-                    echo -e "  ${BOLD}${Y}[HƯỚNG DẪN]${NC}"
-                    echo -e "  ${W}● Proxy: ${G}127.0.0.1${W} | Cổng: ${G}8118${NC}"
-                    echo -e "  ${W}● Nhấn ${R}CTRL + C${W} để làm mới quốc gia.${NC}"
-                    echo -ne "\n"
+                    echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
+                    echo -e "\n${B}HOST:   ${W}127.0.0.1${NC}"
+                    echo -e "${B}PORT:   ${W}8118${NC}"
+                    echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
+                    if [ -n "$country_code" ]; then
+                        echo -e "${B}REGION: ${Y}${country_code^^}${NC}"
+                    else
+                        echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
+                    fi
+                    echo -e "\n${Y}[CTRL+C] để làm mới quốc gia${NC} ${R}[CTRL+C]+[CTRL+Z] để dừng${NC}"
                     auto_rotate > /dev/null 2>&1 &
                     break
                 fi
@@ -171,8 +164,8 @@ main() {
     init_colors
     cleanup
     clear
-    echo -e "\n  ${BOLD}${C}>>> AUTO ROTATE IP PROXY <<<${NC}"
-    echo -e "  ${W}ID: ${Y}2026-01-29${NC} | ${W}Giao diện: ${G}Minimalist${NC}"
+    echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
+    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
     while true; do
         stop_flag=false
         select_country
@@ -183,7 +176,6 @@ main() {
         run_tor
         while [[ "$stop_flag" == "false" ]]; do sleep 1; done
         cleanup
-        clear
     done
 }
 
