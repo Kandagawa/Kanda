@@ -76,13 +76,15 @@ select_rotate_time() {
 install_services() {
     cleanup
     sleep 1
-    echo -e "\n${C}[*] Khởi tạo dịch vụ...${NC}"
+    echo -e "\n${C}[*] Đang đồng bộ hệ thống (Ưu tiên Update)...${NC}"
     render_bar 10
-    # FIX DUY NHẤT: Cập nhật hệ thống & cài lại curl để fix lỗi link executable (không hiện log)
-    pkg update -y > /dev/null 2>&1 && pkg upgrade -y > /dev/null 2>&1
+    # Cập nhật repository và nâng cấp các gói cốt lõi để fix lỗi thư viện SSL
+    pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     render_bar 40
-    # Cài đặt dịch vụ và reinstall curl để đồng bộ symbol (không hiện log)
+    # Cài đặt các dịch vụ cần thiết
     pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+    render_bar 70
+    # Ép cài lại curl để đảm bảo liên kết đúng với thư viện mới vừa update
     pkg install curl --reinstall -y > /dev/null 2>&1
     render_bar 100
     echo -e "\n"
@@ -103,14 +105,11 @@ config_privoxy() {
 }
 
 config_tor() {
-    # Tạo thư mục data và cấp quyền (tránh kẹt do không ghi được cache)
     mkdir -p "$PREFIX/var/lib/tor"
     chmod 700 "$PREFIX/var/lib/tor"
-    
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
     
-    # Cấu hình cơ bản kèm Fix kẹt 50%
     echo -e "ControlPort 9051
 CookieAuthentication 0
 DataDirectory $PREFIX/var/lib/tor
@@ -132,7 +131,8 @@ run_tor() {
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | tr -d '%')
+            # Lấy giá trị phần trăm đầu tiên tìm thấy để tránh lỗi kẹt vòng lặp
+            percent=$(echo "$line" | grep -oP "\d+%" | head -n 1 | tr -d '%')
             printf "\r${C}[*] Thiết lập mạch kết nối: ${Y}${percent}%%${NC}"
             if [ "$percent" -eq 100 ]; then
                 echo -e "\n\n${G}[HTTP/HTTPS] Kết nối đã sẵn sàng!${NC}"
@@ -173,7 +173,7 @@ main() {
     cleanup
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
-    echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
+    echo -e "\n${R}Lưu ý: Hệ thống sẽ tự cập nhật để tránh lỗi thư viện${NC}"
     
     while true; do
         stop_flag=false
