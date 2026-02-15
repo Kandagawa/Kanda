@@ -49,11 +49,13 @@ select_country() {
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
+            display_region="GLOBAL"
             echo -e "  ${W}── ${G}Lựa chọn: Toàn cầu${NC}"
             return
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
-            echo -e "  ${W}── ${G}Lựa chọn: ${country_code^^}${NC}"
+            display_region="${country_code^^}"
+            echo -e "  ${W}── ${G}Lựa chọn: ${display_region}${NC}"
             return
         else
             echo -e "  ${R}[!] Lỗi: Mã quốc gia không hợp lệ!${NC}"
@@ -110,14 +112,19 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     mkdir -p $PREFIX/var/lib/tor
     chmod 700 $PREFIX/var/lib/tor
+    
+    # Thêm LearnCircuitBuildTimeout và giảm StrictNodes để tránh kẹt 50%
     echo -e "ControlPort 9051
 CookieAuthentication 0
 MaxCircuitDirtiness $sec
 CircuitBuildTimeout 10
+LearnCircuitBuildTimeout 0
 DataDirectory $PREFIX/var/lib/tor
 Log notice stdout" > "$TORRC"
+
     if [ -n "$country_code" ]; then
-        echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
+        # Dùng StrictNodes 0 để ưu tiên quốc gia đó, nếu kẹt Tor sẽ tự tìm mạch khác
+        echo -e "ExitNodes {$country_code}\nStrictNodes 0" >> "$TORRC"
     else
         echo -e "StrictNodes 0" >> "$TORRC"
     fi
@@ -135,13 +142,13 @@ run_tor() {
                     clear
                     echo -e "\n  ${G}${BOLD}✔ KẾT NỐI HOÀN TẤT!${NC}"
                     echo -e "  ${W}┌──────────────────────────────────────────┐${NC}"
-                    echo -e "  ${W}│ ${C}REGION ${NC}» ${Y}${country_code^^:-GLOBAL}${NC}"
+                    echo -e "  ${W}│ ${C}REGION ${NC}» ${Y}${display_region}${NC}"
                     echo -e "  ${W}│ ${C}ROTATE ${NC}» ${Y}${minute_input} PHÚT${NC}"
                     echo -e "  ${W}│ ${C}PROXY  ${NC}» ${G}127.0.0.1:8118${NC}"
                     echo -e "  ${W}└──────────────────────────────────────────┘${NC}"
                     echo -e "  ${BOLD}${Y}[LƯU Ý]${NC}"
+                    echo -e "  ${W}● Nếu chọn quốc gia lạ bị chậm, Tor sẽ ưu tiên mạch ổn định nhất.${NC}"
                     echo -e "  ${W}● Nhấn ${R}CTRL + C${W} để thay đổi cấu hình.${NC}"
-                    echo -e "  ${W}● Nhấn ${R}CTRL + C + Z${W} để dừng hẳn.${NC}"
                     echo -ne "\n"
                     auto_rotate > /dev/null 2>&1 &
                     break
