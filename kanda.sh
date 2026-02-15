@@ -11,10 +11,10 @@ init_alias() {
 }
 
 init_colors() {
-    # Tông màu chuyên nghiệp: Cyan, White, Grey
-    G='\033[38;5;82m'; Y='\033[38;5;226m'; B='\033[38;5;33m'
-    C='\033[38;5;51m'; W='\033[38;5;255m'; R='\033[38;5;196m'
-    D='\033[38;5;244m'; NC='\033[0m'
+    # Bảng màu nâng cấp: Sâu và sắc nét hơn
+    G='\033[38;5;121m'; Y='\033[38;5;222m'; B='\033[38;5;111m'
+    C='\033[38;5;87m';  W='\033[38;5;231m'; R='\033[38;5;203m'
+    D='\033[38;5;241m'; NC='\033[0m'
 }
 
 render_bar() {
@@ -22,7 +22,7 @@ render_bar() {
     local w=30
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r${D}  Status: ${C}"
+    printf "\r${D}  Tiến trình: ${C}"
     for ((j=0; j<filled; j++)); do printf "━"; done
     printf "${D}"
     for ((j=0; j<empty; j++)); do printf "━"; done
@@ -37,9 +37,9 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "\n${W}  [ SETTINGS ]${NC}"
+    echo -e "\n${C}  [ CẤU HÌNH HỆ THỐNG ]${NC}"
     while true; do
-        printf "  ${D}» Target Country (eg: us, jp, all): ${W}"
+        printf "  ${D}» Quốc gia (vd: us, jp, all): ${W}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
@@ -49,27 +49,27 @@ select_country() {
             country_code="$clean_input"
             break
         else
-            echo -e "  ${R}! Invalid code.${NC}"
+            echo -e "  ${R}! Mã không hợp lệ.${NC}"
         fi
     done
 }
 
 select_rotate_time() {
     while true; do
-        printf "  ${D}» Rotation Interval (1-9 min): ${W}"
+        printf "  ${D}» Thời gian xoay (1-9 phút): ${W}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
             break
         else
-            echo -e "  ${R}! Enter 1-9.${NC}"
+            echo -e "  ${R}! Chỉ nhập số từ 1-9.${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    echo -e "\n${D}  Synchronizing system...${NC}"
+    echo -e "\n${D}  Đang đồng bộ hóa dữ liệu...${NC}"
     render_bar 30
     pkg update -y > /dev/null 2>&1
     render_bar 70
@@ -105,13 +105,13 @@ run_tor() {
             render_bar "$percent"
             if [ "$percent" -eq 100 ]; then
                 clear
-                echo -e "\n  ${C}●${W} PROXY SYSTEM ACTIVE${NC}"
-                echo -e "  ${D}────────────────────────────${NC}"
-                echo -e "  ${D}Address  :${W} 127.0.0.1:8118${NC}"
-                echo -e "  ${D}Region   :${W} ${country_code^^:-GLOBAL}${NC}"
-                echo -e "  ${D}Rotation :${W} ${minute_input} min${NC}"
-                echo -e "  ${D}────────────────────────────${NC}"
-                echo -e "  ${D}Press [CTRL+C] to reset${NC}\n"
+                echo -e "\n  ${G}●${W} HỆ THỐNG PROXY ĐANG HOẠT ĐỘNG${NC}"
+                echo -e "  ${D}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "  ${D}Địa chỉ  :${W} 127.0.0.1:8118${NC}"
+                echo -e "  ${D}Khu vực  :${W} ${country_code^^:-TOÀN CẦU}${NC}"
+                echo -e "  ${D}Chu kỳ   :${W} ${minute_input} phút/lần${NC}"
+                echo -e "  ${D}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "  ${D}Nhấn [CTRL+C] để thiết lập lại${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -123,7 +123,7 @@ auto_rotate() {
     while true; do
         sleep $sec
         ( pkill -9 tor; rm -f $PREFIX/var/lib/tor/state; tor -f "$TORRC" > /dev/null 2>&1 &
-          sleep 2; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
+          sleep 1; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
     done
 }
 
@@ -131,7 +131,7 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "${D}[*] Optimizing environment...${NC}"
+    echo -e "${D}[*] Đang tối ưu hóa môi trường...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     
     while true; do
@@ -139,8 +139,8 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "${W}  PROXY CONFIGURATION${NC}"
-        echo -e "${D}  ────────────────────${NC}"
+        echo -e "  ${W}TRÌNH QUẢN LÝ PROXY TỰ ĐỘNG${NC}"
+        echo -e "  ${D}───────────────────────────${NC}"
         select_country
         select_rotate_time
         install_services
