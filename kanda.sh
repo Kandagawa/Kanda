@@ -1,35 +1,30 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # Dùng đúng nguyên bản logic của mày: Bọc tất cả vào if grep để không bao giờ lặp lại
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
-        # Chuyển màu xám cũ sang màu xanh lá (1;32) cho đồng bộ
+        # Chữ hướng dẫn chuyển sang Xanh lá đậm (1;32)
         echo -e 'echo -e "\\n\\033[1;32m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
         
-        # Tạo file thực thi trong bin nếu chưa có
         if [ ! -f "$PREFIX/bin/kanda" ]; then
             echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
             chmod +x "$PREFIX/bin/kanda"
         fi
-        
-        # Load lại cấu hình ngay lập tức
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
 
 init_colors() {
-    # THAY ĐỔI MÀU SẮC THEO Ý MÀY
-    # Tím -> Cam (1;38;5;208), Nâu/Xám -> Xanh lá (1;32)
-    PURPLE='\033[1;38;5;208m';  # Màu Cam (thay cho Tím)
-    CYAN='\033[1;36m'; 
-    GREEN='\033[1;32m';         # Xanh lá đậm
-    YELLOW='\033[1;33m'; 
-    RED='\033[1;31m'; 
-    WHITE='\033[1;37m';
-    GREY='\033[1;32m';          # Xanh lá (thay cho Nâu/Xám)
-    BLUE='\033[1;34m'; 
-    NC='\033[0m'
+    # MÀU CHO ICON (Giữ nguyên gốc)
+    ICON_PURPLE='\033[38;5;141m'; ICON_GREY='\033[38;5;243m'; ICON_RED='\033[38;5;203m'
+    
+    # MÀU CHO CHỮ (Sửa đậm hơn theo ý mày: Tím -> Cam, Nâu -> Xanh lá)
+    TEXT_ORANGE='\033[1;38;5;208m'; # Thay cho Tím
+    TEXT_GREEN='\033[1;32m';        # Thay cho Nâu/Xám
+    
+    # CÁC MÀU HỖ TRỢ KHÁC
+    CYAN='\033[1;36m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'
+    RED='\033[1;31m'; WHITE='\033[1;37m'; BLUE='\033[1;34m'; NC='\033[0m'
 }
 
 render_bar() {
@@ -38,10 +33,11 @@ render_bar() {
     local w=25
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r\033[K  ${GREY}${label}: ${NC}["
+    # Nhãn (label) dùng TEXT_GREEN, Icon thanh dùng ICON_GREY
+    printf "\r\033[K  ${TEXT_GREEN}${label}: ${NC}["
     printf "${CYAN}"
     for ((j=0; j<filled; j++)); do printf "━"; done
-    printf "${GREY}"
+    printf "${ICON_GREY}"
     for ((j=0; j<empty; j++)); do printf "━"; done
     printf "${NC}] ${WHITE}%d%%${NC}" "$percent"
 }
@@ -55,9 +51,9 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
+    echo -e "\n  ${ICON_PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
+        printf "  ${ICON_GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
@@ -75,9 +71,9 @@ select_country() {
 }
 
 select_rotate_time() {
-    echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THỜI GIAN XOAY IP${NC}"
+    echo -e "\n  ${ICON_PURPLE}◈${NC} ${WHITE}THỜI GIAN XOAY IP${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Số phút (1 đến 9):${NC} ${YELLOW}"
+        printf "  ${ICON_GREY}╰─>${NC} ${BLUE}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
@@ -90,7 +86,7 @@ select_rotate_time() {
 
 install_services() {
     cleanup
-    echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
+    echo -e "\n  ${ICON_GREY}Đang khởi động tiến trình hệ thống...${NC}"
     
     local current_p=20
     render_bar "Tiến trình 1" $current_p
@@ -105,10 +101,8 @@ install_services() {
             done
         ) &
         local sub_pid=$!
-        
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
-        
         kill $sub_pid &> /dev/null
     else
         for ((i=21; i<=100; i+=10)); do
@@ -116,7 +110,6 @@ install_services() {
             sleep 0.05
         done
     fi
-    
     rm -f /tmp/progress_kanda > /dev/null 2>&1
     render_bar "Tiến trình 1" 100
     echo -e "" 
@@ -150,13 +143,13 @@ run_tor() {
             if [ "$percent" -eq 100 ]; then
                 clear
                 echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
-                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "  ${ICON_GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
-                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}        : Đặt lại cấu hình${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}    : Dừng hoàn toàn${NC}\n"
+                echo -e "  ${ICON_GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "  ${ICON_GREY}» ${ICON_RED}[CTRL+C]${ICON_GREY}        : Đặt lại cấu hình${NC}"
+                echo -e "  ${ICON_GREY}» ${ICON_RED}[CTRL+C]+[CTRL+Z]${ICON_GREY}    : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -176,8 +169,8 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
-    echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
+    echo -e "  ${ICON_GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
+    echo -e "  ${ICON_GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     
     if ! command -v tor &> /dev/null; then
         pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
@@ -188,7 +181,7 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
+        echo -e "  ${TEXT_ORANGE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${TEXT_ORANGE}▬▬▬${NC}"
         select_country
         select_rotate_time
         install_services
