@@ -133,8 +133,8 @@ run_tor() {
                         echo -e "${B}REGION: ${Y}TOÀN CẦU${NC}"
                     fi
                     echo -e "${B}RENEW:  ${Y}${minute_input} PHÚT${NC}"
-                    echo -e "\n${Y}[CTRL+C] để đổi quốc gia${NC}"
-                    break
+                    echo -e "\n${Y}[CTRL+C] để đổi cấu hình${NC}"
+                    return 0
                 fi
             fi
         fi
@@ -150,6 +150,7 @@ main() {
     clear
     echo -e "${C}>>> CẤU HÌNH XOAY IP QUỐC GIA TỰ ĐỘNG <<<${NC}"
     echo -e "\n${R}Lưu ý: Lần đầu thiết lập sẽ tốn thời gian${NC}"
+    
     while true; do
         stop_flag=false
         select_country
@@ -161,17 +162,19 @@ main() {
         
         countdown=$sec
         while [[ "$stop_flag" == "false" ]]; do
-            printf "\r${B}ĐỔI IP SAU: ${R}%02d:%02d${NC} " "$((countdown/60))" "$((countdown%60))"
+            m=$((countdown / 60))
+            s=$((countdown % 60))
+            printf "\r\033[K${B}TIẾN TRÌNH: ${G}ĐANG CHẠY${NC} | ${B}XOAY IP SAU: ${R}%02d:%02d${NC}" "$m" "$s"
             sleep 1
             ((countdown--))
+            
             if [ $countdown -lt 0 ]; then
-                (
-                    pkill -9 tor
-                    rm -f $PREFIX/var/lib/tor/state
-                    tor -f "$TORRC" > /dev/null 2>&1 &
-                    sleep 1
-                    echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051
-                ) > /dev/null 2>&1
+                echo -e "\n${C}[*] Đang xoay IP mới...${NC}"
+                pkill -9 tor
+                rm -f $PREFIX/var/lib/tor/state
+                tor -f "$TORRC" > /dev/null 2>&1 &
+                sleep 2
+                echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 > /dev/null 2>&1
                 countdown=$sec
             fi
         done
