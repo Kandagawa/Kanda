@@ -17,12 +17,12 @@ init_colors() {
 }
 
 render_bar() {
-    local percent=$1
-    local w=30
+    local label=$1
+    local percent=$2
+    local w=25
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    # \r\033[K để xóa sạch dòng cũ trước khi ghi dòng mới, tránh chồng log
-    printf "\r\033[K  ${GREY}Tiến trình: ${NC}["
+    printf "\r\033[K  ${GREY}${label}: ${NC}["
     printf "${CYAN}"
     for ((j=0; j<filled; j++)); do printf "━"; done
     printf "${GREY}"
@@ -43,11 +43,13 @@ select_country() {
         printf "  ${GREY}╰─>${NC} ${BLUE}Nhập mã (us, jp, all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-        if [[ "$clean_input" == "all" ]]; then
+        if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
+            display_country="TOÀN CẦU"
             country_code=""
             break
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
+            display_country="${country_code^^}"
             break
         else
             echo -e "      ${RED}✗ Mã không hợp lệ!${NC}"
@@ -71,13 +73,13 @@ select_rotate_time() {
 
 install_services() {
     cleanup
-    echo -e "\n  ${GREY}Đang chuẩn bị hệ thống...${NC}"
-    render_bar 30
+    echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
+    render_bar "Tiến trình 1" 20
     pkg update -y > /dev/null 2>&1
-    render_bar 70
+    render_bar "Tiến trình 1" 60
     pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
-    render_bar 100
-    echo -e "" # Xuống dòng để không bị đè bởi log tiếp theo
+    render_bar "Tiến trình 1" 100
+    echo -e "" 
 }
 
 config_privoxy() {
@@ -99,23 +101,22 @@ config_tor() {
 }
 
 run_tor() {
-    # Reset lại thanh tiến trình trước khi chạy Tor
-    render_bar 0
+    render_bar "Tiến trình 2" 0
     stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            render_bar "$percent"
+            render_bar "Tiến trình 2" "$percent"
             if [ "$percent" -eq 100 ]; then
                 clear
                 echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${WHITE}  PROXY ADDR :${NC} ${YELLOW}127.0.0.1:8118${NC}"
-                echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${country_code^^:-TOÀN CẦU}${NC}"
+                echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
+                echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» Lệnh khởi động:${NC} ${PURPLE}kanda${NC}"
-                echo -e "  ${GREY}» Nhấn [CTRL+C] để đặt lại${NC}\n"
+                echo -e "  ${GREY}» Lệnh khởi động :${NC} ${PURPLE}kanda${NC}"
+                echo -e "  ${GREY}» Nhấn [CTRL+C]  : Đặt lại cấu hình${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
