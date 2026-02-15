@@ -11,10 +11,16 @@ init_alias() {
 }
 
 init_colors() {
-    # Bảng màu nâng cấp: Sâu và sắc nét hơn
-    G='\033[38;5;121m'; Y='\033[38;5;222m'; B='\033[38;5;111m'
-    C='\033[38;5;87m';  W='\033[38;5;231m'; R='\033[38;5;203m'
-    D='\033[38;5;241m'; NC='\033[0m'
+    # Palette màu thanh lịch
+    PURPLE='\033[38;5;141m'
+    CYAN='\033[38;5;81m'
+    GREEN='\033[38;5;121m'
+    YELLOW='\033[38;5;222m'
+    RED='\033[38;5;203m'
+    WHITE='\033[38;5;231m'
+    GREY='\033[38;5;243m'
+    BLUE='\033[38;5;117m'
+    NC='\033[0m'
 }
 
 render_bar() {
@@ -22,11 +28,12 @@ render_bar() {
     local w=30
     local filled=$((percent*w/100))
     local empty=$((w-filled))
-    printf "\r${D}  Tiến trình: ${C}"
-    for ((j=0; j<filled; j++)); do printf "━"; done
-    printf "${D}"
-    for ((j=0; j<empty; j++)); do printf "━"; done
-    printf " ${W}%d%%${NC}" "$percent"
+    printf "\r  ${GREY}Trạng thái: ${NC}["
+    printf "${CYAN}"
+    for ((j=0; j<filled; j++)); do printf "💧"; done # Sử dụng icon giọt nước nhỏ hoặc thanh mảnh
+    printf "${GREY}"
+    for ((j=0; j<empty; j++)); do printf "·"; done
+    printf "${NC}] ${WHITE}%d%%${NC}" "$percent"
 }
 
 cleanup() {
@@ -37,39 +44,43 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "\n${C}  [ CẤU HÌNH HỆ THỐNG ]${NC}"
+    echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THIẾT LẬP VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${D}» Quốc gia (vd: us, jp, all): ${W}"
+        printf "  ${GREY}╰─>${NC} ${BLUE}Nhập mã (vd: us, jp, all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
             country_code=""
+            echo -e "      ${GREEN}✓ Đã chọn: Toàn cầu${NC}"
             break
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
+            echo -e "      ${GREEN}✓ Đã chọn: ${country_code^^}${NC}"
             break
         else
-            echo -e "  ${R}! Mã không hợp lệ.${NC}"
+            echo -e "      ${RED}✗ Mã không hợp lệ!${NC}"
         fi
     done
 }
 
 select_rotate_time() {
+    echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THỜI GIAN LÀM MỚI IP${NC}"
     while true; do
-        printf "  ${D}» Thời gian xoay (1-9 phút): ${W}"
+        printf "  ${GREY}╰─>${NC} ${BLUE}Số phút (1-9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
+            echo -e "      ${GREEN}✓ Tự động xoay sau ${minute_input} phút${NC}"
             break
         else
-            echo -e "  ${R}! Chỉ nhập số từ 1-9.${NC}"
+            echo -e "      ${RED}✗ Chỉ nhập số 1-9!${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    echo -e "\n${D}  Đang đồng bộ hóa dữ liệu...${NC}"
+    echo -e "\n  ${GREY}Đang chuẩn bị tài nguyên hệ thống...${NC}"
     render_bar 30
     pkg update -y > /dev/null 2>&1
     render_bar 70
@@ -105,13 +116,14 @@ run_tor() {
             render_bar "$percent"
             if [ "$percent" -eq 100 ]; then
                 clear
-                echo -e "\n  ${G}●${W} HỆ THỐNG PROXY ĐANG HOẠT ĐỘNG${NC}"
-                echo -e "  ${D}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${D}Địa chỉ  :${W} 127.0.0.1:8118${NC}"
-                echo -e "  ${D}Khu vực  :${W} ${country_code^^:-TOÀN CẦU}${NC}"
-                echo -e "  ${D}Chu kỳ   :${W} ${minute_input} phút/lần${NC}"
-                echo -e "  ${D}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${D}Nhấn [CTRL+C] để thiết lập lại${NC}\n"
+                echo -e "\n  ${GREEN}✨ HỆ THỐNG ĐÃ KÍCH HOẠT THÀNH CÔNG${NC}"
+                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "   ${CYAN}⚡${NC}  ${WHITE}IP PROXY   :${NC} ${YELLOW}127.0.0.1:8118${NC}"
+                echo -e "   ${CYAN}⚡${NC}  ${WHITE}VÙNG CHỌN  :${NC} ${GREEN}${country_code^^:-TOÀN CẦU}${NC}"
+                echo -e "   ${CYAN}⚡${NC}  ${WHITE}CHU KỲ XOAY:${NC} ${BLUE}${minute_input} phút${NC}"
+                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "  ${GREY}» Lệnh quay lại:${NC} ${PURPLE}kanda${NC}"
+                echo -e "  ${GREY}» Dừng hệ thống:${NC} ${RED}[CTRL+C]${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -131,7 +143,7 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "${D}[*] Đang tối ưu hóa môi trường...${NC}"
+    echo -e "${GREY}[*] Đang tinh chỉnh môi trường Termux...${NC}"
     pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
     
     while true; do
@@ -139,8 +151,8 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "  ${W}TRÌNH QUẢN LÝ PROXY TỰ ĐỘNG${NC}"
-        echo -e "  ${D}───────────────────────────${NC}"
+        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}BỘ ĐIỀU KHIỂN PROXY TỰ ĐỘNG${NC} ${PURPLE}▬▬▬${NC}"
+        echo -e "  ${GREY}      (Giao diện Minimal Color)${NC}"
         select_country
         select_rotate_time
         install_services
