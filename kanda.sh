@@ -1,25 +1,25 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # 1. Thêm alias kanda (Kiểm tra chính xác để không trùng lặp)
+    # 1. Thêm alias kanda (Kiểm tra và chỉ thêm nếu chưa có)
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
     fi
     
-    # 2. Tạo file thực thi kanda trong bin (Giúp gõ kanda là chạy luôn không cần đợi source)
+    # 2. Tạo file thực thi kanda trong bin (Giúp gõ là ăn ngay lần đầu)
     if [ ! -f "$PREFIX/bin/kanda" ]; then
         echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
         chmod +x "$PREFIX/bin/kanda"
     fi
 
-    # 3. FIX LỖI LẶP DÒNG: Xóa sạch các dòng thông báo cũ trước khi thêm dòng mới
-    # Dùng sed để xóa tất cả các dòng có chứa nội dung thông báo kanda cũ
+    # 3. FIX LỖI HIỆN NHIỀU LẦN: Xóa dòng thông báo cũ trước khi ghi dòng mới
+    # Lệnh này xóa mọi dòng có chứa cụm từ "kanda" mà định dạng là lệnh echo trong .bashrc
     sed -i '/Lệnh quay lại cấu hình nhập: kanda/d' ~/.bashrc
     
-    # Thêm lại một dòng duy nhất vào cuối file
+    # Ghi lại dòng thông báo duy nhất vào cuối file
     echo -e 'echo -e "\\n\\033[38;5;243m Lệnh quay lại cấu hình nhập: \\033[38;5;81mkanda\\033[0m\\n"' >> ~/.bashrc
     
-    # FIX LỖI NHẬP 2 LẦN: Load lại bashrc ngay lập tức
+    # Load lại bashrc để nhận diện alias ngay lập tức nếu cần
     source ~/.bashrc 2>/dev/null
 }
 
