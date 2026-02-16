@@ -96,6 +96,7 @@ install_services() {
         ) &
         local sub_pid=$!
         
+        # CHỈ CÀI ĐẶT/CẬP NHẬT NHỮNG GÓI LIÊN QUAN
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
         
@@ -145,8 +146,8 @@ run_tor() {
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}        : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}    : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -166,11 +167,12 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "  ${RED}Lần lần đầu thiết lập sẽ mất 1-2 phút${NC}"
-    echo -e "  ${RED}[*] Kiểm tra các cập nhật cho dịch vụ...${NC}"
+    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
+    echo -e "  ${GREY}[*] Kiểm tra hệ thống...${NC}"
     
-    if ! command -v tor &> /dev/null; then
-        pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+    # THAY ĐỔI Ở ĐÂY: Không pkg upgrade toàn bộ, chỉ cài/cập nhật gói cần thiết nếu thiếu
+    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
+        pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
     fi
     
     while true; do
@@ -178,7 +180,7 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG PROXY${NC} ${PURPLE}▬▬▬${NC}"
+        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         select_country
         select_rotate_time
         install_services
