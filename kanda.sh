@@ -48,7 +48,9 @@ select_country() {
         printf "  ${GREY}╰─>${NC} ${ORANGE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-        if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
+        if [[ -z "$clean_input" ]]; then
+            echo -e "      ${RED}✗ Không được để trống!${NC}"
+        elif [[ "$clean_input" == "all" ]]; then
             display_country="TOÀN CẦU"
             country_code=""
             break
