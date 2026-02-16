@@ -42,12 +42,12 @@ cleanup() {
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     
     # 2. QUAN TRỌNG: Giết các hàm chạy ngầm (như auto_rotate) của script
-    # Lấy danh sách các PID tiến trình con của shell hiện tại và kill sạch
     pkill -P $$ > /dev/null 2>&1
     
-    # 3. Xóa rác
+    # 3. Xóa rác và file log tạm
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
+    rm -f "$PREFIX/tmp/tor_log.txt" > /dev/null 2>&1
 }
 
 select_country() {
@@ -137,34 +137,53 @@ config_tor() {
     [[ -n "$country_code" ]] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC" || echo -e "StrictNodes 0" >> "$TORRC"
 }
 
+# --- FIX START: Hàm run_tor mới ---
 run_tor() {
     render_bar "Tiến trình 2" 0
-    stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
+    
+    # Xóa log cũ để tránh đọc nhầm
+    rm -f "$PREFIX/tmp/tor_log.txt"
+    
+    # Chạy Tor nền và đẩy log ra file thay vì pipe
+    tor -f "$TORRC" > "$PREFIX/tmp/tor_log.txt" 2>&1 &
+    
+    while true; do
         [[ "$stop_flag" == "true" ]] && break
-        if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            render_bar "Tiến trình 2" "$percent"
-            if [ "$percent" -eq 100 ]; then
-                clear
-                echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
-                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
-                echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
-                echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
-                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
-                auto_rotate > /dev/null 2>&1 &
-                break
+        
+        if [ -f "$PREFIX/tmp/tor_log.txt" ]; then
+            # Đọc % từ file log
+            # Dùng tail để lấy dòng mới nhất, tránh grep file quá lớn
+            percent=$(grep -oP "Bootstrapped \d+%" "$PREFIX/tmp/tor_log.txt" | tail -1 | grep -oP "\d+")
+            
+            if [[ -n "$percent" ]]; then
+                render_bar "Tiến trình 2" "$percent"
+                if [ "$percent" -eq 100 ]; then
+                    render_bar "Tiến trình 2" 100
+                    clear
+                    echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
+                    echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
+                    echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
+                    echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
+                    echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+                    echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
+                    
+                    # Gọi auto_rotate ở đây, trong main shell
+                    auto_rotate > /dev/null 2>&1 &
+                    break
+                fi
             fi
         fi
+        sleep 0.2
     done
 }
+# --- FIX END ---
 
 auto_rotate() {
     while true; do
+        # Sleep trước để đảm bảo chu kỳ đầu tiên đúng
         sleep $sec
-        # Sử dụng nc để đổi IP mượt hơn, tránh kill/start liên tục
         ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
     done
 }
@@ -182,7 +201,6 @@ main() {
     
     while true; do
         stop_flag=false
-        # Khi nhấn Ctrl+C, gán stop_flag=true để thoát vòng lặp chờ IP
         trap 'stop_flag=true' SIGINT
         
         cleanup
@@ -195,11 +213,9 @@ main() {
         config_tor
         run_tor
         
-        # Vòng lặp chờ tín hiệu Ctrl+C
         while [[ "$stop_flag" == "false" ]]; do 
             sleep 0.5
         done
-        # Reset trap sau khi đã bắt được Ctrl+C để vòng lặp mới bắt đầu sạch sẽ
         trap - SIGINT
     done
 }
