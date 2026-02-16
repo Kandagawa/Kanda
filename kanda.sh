@@ -36,9 +36,16 @@ render_bar() {
 }
 
 cleanup() {
+    # 1. Giết sạch Tor và Privoxy
     pkill -9 tor > /dev/null 2>&1
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
+    
+    # 2. QUAN TRỌNG: Giết các hàm chạy ngầm (như auto_rotate) của script
+    # Lấy danh sách các PID tiến trình con của shell hiện tại và kill sạch
+    pkill -P $$ > /dev/null 2>&1
+    
+    # 3. Xóa rác
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
 }
@@ -157,8 +164,8 @@ run_tor() {
 auto_rotate() {
     while true; do
         sleep $sec
-        ( pkill -9 tor; rm -f $PREFIX/var/lib/tor/state; tor -f "$TORRC" > /dev/null 2>&1 &
-          sleep 1; echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
+        # Sử dụng nc để đổi IP mượt hơn, tránh kill/start liên tục
+        ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
     done
 }
 
@@ -175,7 +182,9 @@ main() {
     
     while true; do
         stop_flag=false
+        # Khi nhấn Ctrl+C, gán stop_flag=true để thoát vòng lặp chờ IP
         trap 'stop_flag=true' SIGINT
+        
         cleanup
         clear
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
@@ -186,13 +195,12 @@ main() {
         config_tor
         run_tor
         
+        # Vòng lặp chờ tín hiệu Ctrl+C
         while [[ "$stop_flag" == "false" ]]; do 
-            if [[ -f "$PREFIX/tmp/progress_kanda" ]]; then
-                val=$(cat "$PREFIX/tmp/progress_kanda" 2>/dev/null)
-                [[ -n "$val" ]] && render_bar "Tiến trình 1" "$val"
-            fi
-            sleep 0.2
+            sleep 0.5
         done
+        # Reset trap sau khi đã bắt được Ctrl+C để vòng lặp mới bắt đầu sạch sẽ
+        trap - SIGINT
     done
 }
 
