@@ -43,7 +43,8 @@ cleanup() {
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
-    rm -f /tmp/progress_kanda > /dev/null 2>&1
+    # FIX: Sửa đường dẫn tmp chuẩn Termux
+    rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
 }
 
 select_country() {
@@ -88,11 +89,13 @@ install_services() {
     render_bar "Tiến trình 1" $current_p
 
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
-        touch /tmp/progress_kanda
+        # FIX: Tạo thư mục tmp trước và sửa đường dẫn
+        mkdir -p "$PREFIX/tmp"
+        touch "$PREFIX/tmp/progress_kanda"
         (
             for ((i=21; i<=98; i++)); do
-                [[ ! -f /tmp/progress_kanda ]] && break
-                echo "$i" > /tmp/progress_kanda
+                [[ ! -f "$PREFIX/tmp/progress_kanda" ]] && break
+                echo "$i" > "$PREFIX/tmp/progress_kanda"
                 sleep 0.15
             done
         ) &
@@ -109,7 +112,8 @@ install_services() {
         done
     fi
     
-    rm -f /tmp/progress_kanda > /dev/null 2>&1
+    # FIX: Xóa file tmp đúng đường dẫn
+    rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
     render_bar "Tiến trình 1" 100
     echo -e "" 
 }
@@ -189,8 +193,9 @@ main() {
         run_tor
         
         while [[ "$stop_flag" == "false" ]]; do 
-            if [[ -f /tmp/progress_kanda ]]; then
-                val=$(cat /tmp/progress_kanda 2>/dev/null)
+            # FIX: Đọc file tmp đúng đường dẫn
+            if [[ -f "$PREFIX/tmp/progress_kanda" ]]; then
+                val=$(cat "$PREFIX/tmp/progress_kanda" 2>/dev/null)
                 [[ -n "$val" ]] && render_bar "Tiến trình 1" "$val"
             fi
             sleep 0.2
