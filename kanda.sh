@@ -166,8 +166,8 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
-    echo -e "  ${GREY}[*] Kiểm tra hệ thống...${NC}"
+    echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
+    echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
     
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
