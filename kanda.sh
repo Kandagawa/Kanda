@@ -96,7 +96,6 @@ install_services() {
         ) &
         local sub_pid=$!
         
-        # CHỈ CÀI ĐẶT/CẬP NHẬT NHỮNG GÓI LIÊN QUAN
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
         
@@ -146,8 +145,8 @@ run_tor() {
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}        : Đặt lại cấu hình${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}    : Dừng hoàn toàn${NC}\n"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -170,7 +169,6 @@ main() {
     echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
     echo -e "  ${GREY}[*] Kiểm tra hệ thống...${NC}"
     
-    # THAY ĐỔI Ở ĐÂY: Không pkg upgrade toàn bộ, chỉ cài/cập nhật gói cần thiết nếu thiếu
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
     fi
