@@ -105,12 +105,27 @@ config_tor() {
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
     
-    # Cấu hình cơ bản, bỏ sạch phần curl lọc node
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
+    # Tối ưu hóa thời gian build mạch để tránh treo
+    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 10\nLog notice stdout" > "$TORRC"
     
     if [[ -n "$country_code" ]]; then
-        # Chỉ ép dùng mã nước, không lọc fingerprint thủ công
-        echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
+        echo -e "  ${GREY}Đang lọc node tốt tại ${display_country}...${NC}"
+        # Lọc Node: Đang chạy (running), là node lối ra (Exit), tốc độ tốt (Fast)
+        strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | \
+            jq -r '.relays[] | select(.running==true and (.flags | contains(["Exit", "Fast"]))) | .fingerprint' | \
+            head -n 50 | tr '\n' ',' | sed 's/,$//')
+            
+        if [[ -z "$strong_nodes" ]]; then
+            # Nếu không tìm thấy node Exit/Fast, lấy node quốc gia đó bình thường nhưng vẫn ưu tiên đang chạy
+            strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | \
+                jq -r '.relays[] | select(.running==true) | .fingerprint' | head -n 20 | tr '\n' ',' | sed 's/,$//')
+        fi
+
+        if [[ -n "$strong_nodes" ]]; then
+            echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
+        else
+            echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
+        fi
     else
         echo -e "StrictNodes 0" >> "$TORRC"
     fi
@@ -119,19 +134,30 @@ config_tor() {
 run_tor() {
     render_bar "Tiến trình 2" 0
     local is_ready=false
-    while read -r line; do
-        [[ "$stop_flag" == "true" ]] && break
+    # Chạy tor và lọc log bootstrapped
+    tor -f "$TORRC" 2>/dev/null | while read -r line; do
+        [[ "$stop_flag" == "true" ]] && pkill -9 tor && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
             render_bar "Tiến trình 2" "$percent"
             if [ "$percent" -eq 100 ]; then
+                echo -e "\n"
                 is_ready=true
-                break
+                # Kích hoạt thông báo thành công khi đạt 100%
+                touch "$PREFIX/tmp/tor_ready"
             fi
         fi
-    done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
+    done &
 
-    if [ "$is_ready" = true ]; then
+    # Đợi tor sẵn sàng
+    local timeout=60
+    while [ ! -f "$PREFIX/tmp/tor_ready" ] && [ $timeout -gt 0 ]; do
+        sleep 1
+        ((timeout--))
+    done
+    rm -f "$PREFIX/tmp/tor_ready"
+
+    if [ $timeout -gt 0 ]; then
         clear
         echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
         echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -142,6 +168,10 @@ run_tor() {
         echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
         echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
         auto_rotate "$sec" > /dev/null 2>&1 &
+    else
+        echo -e "\n  ${RED}✗ Lỗi: Không thể kết nối Tor. Vui lòng thử lại!${NC}"
+        cleanup
+        sleep 2
     fi
 }
 
@@ -172,7 +202,7 @@ main() {
         config_tor
         run_tor
         while [[ "$stop_flag" == "false" ]]; do 
-            sleep 0.5
+            sleep 1
         done
         trap - SIGINT
     done
