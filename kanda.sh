@@ -18,7 +18,6 @@ init_colors() {
     PURPLE='\033[1;38;5;141m'; CYAN='\033[1;36m'; GREEN='\033[1;32m'
     YELLOW='\033[1;33m'; RED='\033[1;31m'; WHITE='\033[1;37m'
     GREY='\033[1;30m'; BLUE='\033[1;34m'; NC='\033[0m'
-    # Màu cam đỏ nhẹ cho câu hỏi
     ORANGE='\033[1;38;5;209m'
 }
 
@@ -47,7 +46,6 @@ cleanup() {
 select_country() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
-        # Câu hỏi màu ORANGE, nhưng kết thúc bằng màu YELLOW để chữ nhập vào có màu vàng
         printf "  ${GREY}╰─>${NC} ${ORANGE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
@@ -68,7 +66,6 @@ select_country() {
 select_rotate_time() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THỜI GIAN XOAY IP${NC}"
     while true; do
-        # Câu hỏi màu ORANGE, nhưng kết thúc bằng màu YELLOW để chữ nhập vào có màu vàng
         printf "  ${GREY}╰─>${NC} ${ORANGE}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
@@ -169,8 +166,8 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "  ${GREY}Lệnh quay lại cấu hình nhập: ${CYAN}kanda${NC}"
-    echo -e "  ${GREY}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
+    echo -e "  ${RED}Lần lần đầu thiết lập sẽ mất 1-2 phút${NC}"
+    echo -e "  ${RED}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
     
     if ! command -v tor &> /dev/null; then
         pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
