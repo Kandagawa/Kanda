@@ -105,7 +105,7 @@ config_tor() {
     chmod 700 "$PREFIX/var/lib/tor"
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
+    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 8\nLog notice stdout" > "$TORRC"
     [[ -n "$country_code" ]] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC" || echo -e "StrictNodes 0" >> "$TORRC"
 }
 
