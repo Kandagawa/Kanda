@@ -36,18 +36,12 @@ render_bar() {
 }
 
 cleanup() {
-    # 1. Giết sạch Tor và Privoxy
     pkill -9 tor > /dev/null 2>&1
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
-    
-    # 2. QUAN TRỌNG: Giết các hàm chạy ngầm (như auto_rotate) của script
     pkill -P $$ > /dev/null 2>&1
-    
-    # 3. Xóa rác và file log tạm
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
-    rm -f "$PREFIX/tmp/tor_log.txt" > /dev/null 2>&1
 }
 
 select_country() {
@@ -87,34 +81,12 @@ select_rotate_time() {
 install_services() {
     cleanup
     echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
-    
     local current_p=20
     render_bar "Tiến trình 1" $current_p
-
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
-        mkdir -p "$PREFIX/tmp"
-        touch "$PREFIX/tmp/progress_kanda"
-        (
-            for ((i=21; i<=98; i++)); do
-                [[ ! -f "$PREFIX/tmp/progress_kanda" ]] && break
-                echo "$i" > "$PREFIX/tmp/progress_kanda"
-                sleep 0.15
-            done
-        ) &
-        local sub_pid=$!
-        
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
-        
-        kill $sub_pid &> /dev/null
-    else
-        for ((i=21; i<=100; i+=10)); do
-            render_bar "Tiến trình 1" $i
-            sleep 0.05
-        done
     fi
-    
-    rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
     render_bar "Tiến trình 1" 100
     echo -e "" 
 }
@@ -133,57 +105,49 @@ config_tor() {
     chmod 700 "$PREFIX/var/lib/tor"
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nGeoIPFile $PREFIX/share/tor/geoip\nGeoIPv6File $PREFIX/share/tor/geoip6\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
+    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
     [[ -n "$country_code" ]] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC" || echo -e "StrictNodes 0" >> "$TORRC"
 }
 
-# --- FIX START: Hàm run_tor mới ---
+# --- FIX CHÍNH TẠI ĐÂY ---
 run_tor() {
     render_bar "Tiến trình 2" 0
+    local is_ready=false
     
-    # Xóa log cũ để tránh đọc nhầm
-    rm -f "$PREFIX/tmp/tor_log.txt"
-    
-    # Chạy Tor nền và đẩy log ra file thay vì pipe
-    tor -f "$TORRC" > "$PREFIX/tmp/tor_log.txt" 2>&1 &
-    
-    while true; do
+    # Sử dụng Process Substitution để tránh lỗi Subshell (mất biến)
+    while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
-        
-        if [ -f "$PREFIX/tmp/tor_log.txt" ]; then
-            # Đọc % từ file log
-            # Dùng tail để lấy dòng mới nhất, tránh grep file quá lớn
-            percent=$(grep -oP "Bootstrapped \d+%" "$PREFIX/tmp/tor_log.txt" | tail -1 | grep -oP "\d+")
-            
-            if [[ -n "$percent" ]]; then
-                render_bar "Tiến trình 2" "$percent"
-                if [ "$percent" -eq 100 ]; then
-                    render_bar "Tiến trình 2" 100
-                    clear
-                    echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
-                    echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                    echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
-                    echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
-                    echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
-                    echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                    echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
-                    echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
-                    
-                    # Gọi auto_rotate ở đây, trong main shell
-                    auto_rotate > /dev/null 2>&1 &
-                    break
-                fi
+        if [[ "$line" == *"Bootstrapped"* ]]; then
+            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
+            render_bar "Tiến trình 2" "$percent"
+            if [ "$percent" -eq 100 ]; then
+                is_ready=true
+                break
             fi
         fi
-        sleep 0.2
-    done
+    done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
+
+    if [ "$is_ready" = true ]; then
+        clear
+        echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
+        echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
+        echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
+        echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
+        echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+        echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
+        
+        # Gọi auto_rotate với tham số sec để đảm bảo không bị rỗng
+        auto_rotate "$sec" > /dev/null 2>&1 &
+    fi
 }
-# --- FIX END ---
 
 auto_rotate() {
+    local wait_time=$1
     while true; do
-        # Sleep trước để đảm bảo chu kỳ đầu tiên đúng
-        sleep $sec
+        sleep "$wait_time"
+        # SIGNAL NEWNYM yêu cầu Tor đổi IP mới ngay lập tức
         ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
     done
 }
@@ -194,10 +158,6 @@ main() {
     clear
     echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
     echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
-    
-    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
-        pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
-    fi
     
     while true; do
         stop_flag=false
