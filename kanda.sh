@@ -1,27 +1,25 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 init_alias() {
-    # Dùng đúng nguyên bản logic của mày: Bọc tất cả vào if grep để không bao giờ lặp lại
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
         echo -e 'echo -e "\\n\\033[1;30m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
         
-        # Tạo file thực thi trong bin nếu chưa có
         if [ ! -f "$PREFIX/bin/kanda" ]; then
             echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
             chmod +x "$PREFIX/bin/kanda"
         fi
         
-        # Load lại cấu hình ngay lập tức
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
 
 init_colors() {
-    # Chuyển hết sang mã Bold (1;...) để màu đậm và nét hơn
     PURPLE='\033[1;38;5;141m'; CYAN='\033[1;36m'; GREEN='\033[1;32m'
     YELLOW='\033[1;33m'; RED='\033[1;31m'; WHITE='\033[1;37m'
     GREY='\033[1;30m'; BLUE='\033[1;34m'; NC='\033[0m'
+    # Màu cam đỏ nhẹ cho câu hỏi
+    ORANGE='\033[1;38;5;209m'
 }
 
 render_bar() {
@@ -43,14 +41,14 @@ cleanup() {
     pkill -9 privoxy > /dev/null 2>&1
     pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
-    # FIX: Sửa đường dẫn tmp chuẩn Termux
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
 }
 
 select_country() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
+        # Câu hỏi màu ORANGE, nhưng kết thúc bằng màu YELLOW để chữ nhập vào có màu vàng
+        printf "  ${GREY}╰─>${NC} ${ORANGE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
@@ -70,7 +68,8 @@ select_country() {
 select_rotate_time() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THỜI GIAN XOAY IP${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${BLUE}Số phút (1 đến 9):${NC} ${YELLOW}"
+        # Câu hỏi màu ORANGE, nhưng kết thúc bằng màu YELLOW để chữ nhập vào có màu vàng
+        printf "  ${GREY}╰─>${NC} ${ORANGE}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
@@ -89,7 +88,6 @@ install_services() {
     render_bar "Tiến trình 1" $current_p
 
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
-        # FIX: Tạo thư mục tmp trước và sửa đường dẫn
         mkdir -p "$PREFIX/tmp"
         touch "$PREFIX/tmp/progress_kanda"
         (
@@ -112,7 +110,6 @@ install_services() {
         done
     fi
     
-    # FIX: Xóa file tmp đúng đường dẫn
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
     render_bar "Tiến trình 1" 100
     echo -e "" 
@@ -151,8 +148,8 @@ run_tor() {
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}             : Đặt lại cấu hình${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}    : Dừng hoàn toàn${NC}\n"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -193,7 +190,6 @@ main() {
         run_tor
         
         while [[ "$stop_flag" == "false" ]]; do 
-            # FIX: Đọc file tmp đúng đường dẫn
             if [[ -f "$PREFIX/tmp/progress_kanda" ]]; then
                 val=$(cat "$PREFIX/tmp/progress_kanda" 2>/dev/null)
                 [[ -n "$val" ]] && render_bar "Tiến trình 1" "$val"
