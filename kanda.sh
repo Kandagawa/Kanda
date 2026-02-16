@@ -104,14 +104,13 @@ config_tor() {
     chmod 700 "$PREFIX/var/lib/tor"
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
+    
+    # Cấu hình cơ bản, bỏ sạch phần curl lọc node
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
+    
     if [[ -n "$country_code" ]]; then
-        strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
-        if [[ -n "$strong_nodes" ]]; then
-            echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
-        else
-            echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
-        fi
+        # Chỉ ép dùng mã nước, không lọc fingerprint thủ công
+        echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
     else
         echo -e "StrictNodes 0" >> "$TORRC"
     fi
