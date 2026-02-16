@@ -167,7 +167,7 @@ main() {
     init_colors
     clear
     echo -e "  ${RED}Lần lần đầu thiết lập sẽ mất 1-2 phút${NC}"
-    echo -e "  ${RED}[*] Kiểm tra và tối ưu hoá hệ thống...${NC}"
+    echo -e "  ${RED}[*] Kiểm tra các cập nhật cho dịch vụ...${NC}"
     
     if ! command -v tor &> /dev/null; then
         pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
