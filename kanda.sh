@@ -1,14 +1,15 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- Khởi tạo và Màu sắc ---
 init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
         echo -e 'echo -e "\\n\\033[1;30m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
+        
         if [ ! -f "$PREFIX/bin/kanda" ]; then
             echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
             chmod +x "$PREFIX/bin/kanda"
         fi
+        
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
@@ -21,8 +22,11 @@ init_colors() {
 }
 
 render_bar() {
-    local label=$1; local percent=$2; local w=25
-    local filled=$((percent*w/100)); local empty=$((w-filled))
+    local label=$1
+    local percent=$2
+    local w=25
+    local filled=$((percent*w/100))
+    local empty=$((w-filled))
     printf "\r\033[K  ${GREY}${label}: ${NC}["
     printf "${CYAN}"
     for ((j=0; j<filled; j++)); do printf "━"; done
@@ -32,15 +36,20 @@ render_bar() {
 }
 
 cleanup() {
-    # Giết sạch tiến trình con (hàm rotate cũ) và Tor/Privoxy
-    pkill -P $$ > /dev/null 2>&1
+    # 1. Giết sạch Tor và Privoxy
     pkill -9 tor > /dev/null 2>&1
     pkill -9 privoxy > /dev/null 2>&1
+    pkill -f "SIGNAL NEWNYM" > /dev/null 2>&1
+    
+    # 2. QUAN TRỌNG: Giết các hàm chạy ngầm (như auto_rotate) của script
+    # Lấy danh sách các PID tiến trình con của shell hiện tại và kill sạch
+    pkill -P $$ > /dev/null 2>&1
+    
+    # 3. Xóa rác
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
 }
 
-# --- Lựa chọn thông số ---
 select_country() {
     echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
     while true; do
@@ -48,9 +57,13 @@ select_country() {
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" || -z "$clean_input" ]]; then
-            display_country="TOÀN CẦU"; country_code=""; break
+            display_country="TOÀN CẦU"
+            country_code=""
+            break
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
-            country_code="$clean_input"; display_country="${country_code^^}"; break
+            country_code="$clean_input"
+            display_country="${country_code^^}"
+            break
         else
             echo -e "      ${RED}✗ Mã không hợp lệ!${NC}"
         fi
@@ -63,39 +76,65 @@ select_rotate_time() {
         printf "  ${GREY}╰─>${NC} ${ORANGE}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
-            sec=$((minute_input * 60)); break
+            sec=$((minute_input * 60))
+            break
         else
             echo -e "      ${RED}✗ Chỉ nhập số từ 1 đến 9!${NC}"
         fi
     done
 }
 
-# --- Cấu hình và Chạy ---
+install_services() {
+    cleanup
+    echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
+    
+    local current_p=20
+    render_bar "Tiến trình 1" $current_p
+
+    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
+        mkdir -p "$PREFIX/tmp"
+        touch "$PREFIX/tmp/progress_kanda"
+        (
+            for ((i=21; i<=98; i++)); do
+                [[ ! -f "$PREFIX/tmp/progress_kanda" ]] && break
+                echo "$i" > "$PREFIX/tmp/progress_kanda"
+                sleep 0.15
+            done
+        ) &
+        local sub_pid=$!
+        
+        pkg update -y > /dev/null 2>&1
+        pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+        
+        kill $sub_pid &> /dev/null
+    else
+        for ((i=21; i<=100; i+=10)); do
+            render_bar "Tiến trình 1" $i
+            sleep 0.05
+        done
+    fi
+    
+    rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
+    render_bar "Tiến trình 1" 100
+    echo -e "" 
+}
+
 config_privoxy() {
     CONF_DIR="$PREFIX/etc/privoxy"
+    CONF_FILE="$CONF_DIR/config"
     mkdir -p $CONF_DIR
-    echo -e "listen-address 0.0.0.0:8118\nforward-socks5t / 127.0.0.1:9050 ." > "$CONF_DIR/config"
-    privoxy --no-daemon "$CONF_DIR/config" > /dev/null 2>&1 &
+    echo "listen-address 0.0.0.0:8118" > "$CONF_FILE"
+    echo "forward-socks5t / 127.0.0.1:9050 ." >> "$CONF_FILE"
+    privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
 config_tor() {
     mkdir -p "$PREFIX/var/lib/tor"
     chmod 700 "$PREFIX/var/lib/tor"
+    mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    
-    # FIX: Đặt MaxCircuitDirtiness 3600 (1 giờ) để chặn Tor tự ý đổi IP
-    # Điều này bắt Tor phải đợi lệnh từ script của chúng ta.
-    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness 3600\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
+    echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nGeoIPFile $PREFIX/share/tor/geoip\nGeoIPv6File $PREFIX/share/tor/geoip6\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
     [[ -n "$country_code" ]] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC" || echo -e "StrictNodes 0" >> "$TORRC"
-}
-
-auto_rotate() {
-    # Hàm này chạy độc lập sau khi Tor đã sẵn sàng
-    while true; do
-        sleep "$sec"
-        # Gửi lệnh đổi IP mượt mà không ngắt kết nối hệ thống
-        ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
-    done
 }
 
 run_tor() {
@@ -111,11 +150,10 @@ run_tor() {
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
-                echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}Đúng ${minute_input} phút${NC}"
+                echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY} : Đặt lại cấu hình${NC}\n"
-                
-                # CHỈ BẮT ĐẦU ĐẾM GIỜ XOAY KHI ĐÃ SẴN SÀNG 100%
+                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
             fi
@@ -123,23 +161,45 @@ run_tor() {
     done
 }
 
+auto_rotate() {
+    while true; do
+        sleep $sec
+        # Sử dụng nc để đổi IP mượt hơn, tránh kill/start liên tục
+        ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
+    done
+}
+
 main() {
-    init_alias; init_colors; clear
-    if ! command -v tor &> /dev/null; then
-        pkg update -y && pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+    init_alias
+    init_colors
+    clear
+    echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
+    echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
+    
+    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
+        pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
     fi
     
     while true; do
         stop_flag=false
+        # Khi nhấn Ctrl+C, gán stop_flag=true để thoát vòng lặp chờ IP
         trap 'stop_flag=true' SIGINT
-        cleanup; clear
-        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
-        select_country; select_rotate_time
-        config_privoxy; config_tor; run_tor
         
+        cleanup
+        clear
+        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
+        select_country
+        select_rotate_time
+        install_services
+        config_privoxy
+        config_tor
+        run_tor
+        
+        # Vòng lặp chờ tín hiệu Ctrl+C
         while [[ "$stop_flag" == "false" ]]; do 
-            sleep 1
+            sleep 0.5
         done
+        # Reset trap sau khi đã bắt được Ctrl+C để vòng lặp mới bắt đầu sạch sẽ
         trap - SIGINT
     done
 }
