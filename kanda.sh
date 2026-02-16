@@ -4,12 +4,10 @@ init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
         echo -e 'echo -e "\\n\\033[1;30m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
-        
         if [ ! -f "$PREFIX/bin/kanda" ]; then
             echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
             chmod +x "$PREFIX/bin/kanda"
         fi
-        
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
@@ -80,14 +78,15 @@ select_rotate_time() {
 
 install_services() {
     cleanup
-    echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
-    local current_p=20
-    render_bar "Tiến trình 1" $current_p
+    echo -e "\n  ${GREY}Đang kiểm tra hệ thống...${NC}"
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null || ! command -v jq &> /dev/null; then
+        render_bar "Tiến trình 1" 20
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
+        render_bar "Tiến trình 1" 100
+    else
+        render_bar "Tiến trình 1" 100
     fi
-    render_bar "Tiến trình 1" 100
     echo -e "" 
 }
 
@@ -100,23 +99,17 @@ config_privoxy() {
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
-# --- PHẦN FIX LỌC NODE > 1MB/s ---
 config_tor() {
     mkdir -p "$PREFIX/var/lib/tor"
     chmod 700 "$PREFIX/var/lib/tor"
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
-    
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
-    
     if [[ -n "$country_code" ]]; then
-        # Lọc các node có băng thông > 1MB (1048576 bytes)
         strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
-        
         if [[ -n "$strong_nodes" ]]; then
             echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
         else
-            # Nếu không tìm thấy node > 1MB thì dùng mặc định của quốc gia đó
             echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
         fi
     else
@@ -127,7 +120,6 @@ config_tor() {
 run_tor() {
     render_bar "Tiến trình 2" 0
     local is_ready=false
-    
     while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -150,7 +142,6 @@ run_tor() {
         echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
         echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
-        
         auto_rotate "$sec" > /dev/null 2>&1 &
     fi
 }
@@ -169,11 +160,9 @@ main() {
     clear
     echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
     echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
-    
     while true; do
         stop_flag=false
         trap 'stop_flag=true' SIGINT
-        
         cleanup
         clear
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
@@ -183,7 +172,6 @@ main() {
         config_privoxy
         config_tor
         run_tor
-        
         while [[ "$stop_flag" == "false" ]]; do 
             sleep 0.5
         done
