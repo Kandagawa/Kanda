@@ -83,9 +83,9 @@ install_services() {
     echo -e "\n  ${GREY}Đang khởi động tiến trình hệ thống...${NC}"
     local current_p=20
     render_bar "Tiến trình 1" $current_p
-    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null; then
+    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null || ! command -v jq &> /dev/null; then
         pkg update -y > /dev/null 2>&1
-        pkg install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
+        pkg install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
     fi
     render_bar "Tiến trình 1" 100
     echo -e "" 
@@ -100,21 +100,34 @@ config_privoxy() {
     privoxy --no-daemon "$CONF_FILE" > /dev/null 2>&1 &
 }
 
+# --- PHẦN FIX LỌC NODE > 1MB/s ---
 config_tor() {
     mkdir -p "$PREFIX/var/lib/tor"
     chmod 700 "$PREFIX/var/lib/tor"
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
+    
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
-    [[ -n "$country_code" ]] && echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC" || echo -e "StrictNodes 0" >> "$TORRC"
+    
+    if [[ -n "$country_code" ]]; then
+        # Lọc các node có băng thông > 1MB (1048576 bytes)
+        strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
+        
+        if [[ -n "$strong_nodes" ]]; then
+            echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
+        else
+            # Nếu không tìm thấy node > 1MB thì dùng mặc định của quốc gia đó
+            echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
+        fi
+    else
+        echo -e "StrictNodes 0" >> "$TORRC"
+    fi
 }
 
-# --- FIX CHÍNH TẠI ĐÂY ---
 run_tor() {
     render_bar "Tiến trình 2" 0
     local is_ready=false
     
-    # Sử dụng Process Substitution để tránh lỗi Subshell (mất biến)
     while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
@@ -138,7 +151,6 @@ run_tor() {
         echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
         echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
         
-        # Gọi auto_rotate với tham số sec để đảm bảo không bị rỗng
         auto_rotate "$sec" > /dev/null 2>&1 &
     fi
 }
@@ -147,7 +159,6 @@ auto_rotate() {
     local wait_time=$1
     while true; do
         sleep "$wait_time"
-        # SIGNAL NEWNYM yêu cầu Tor đổi IP mới ngay lập tức
         ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
     done
 }
