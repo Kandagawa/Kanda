@@ -151,7 +151,7 @@ run_tor() {
                 echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
                 echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}        : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}             : Đặt lại cấu hình${NC}"
                 echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}    : Dừng hoàn toàn${NC}\n"
                 auto_rotate > /dev/null 2>&1 &
                 break
