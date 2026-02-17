@@ -169,7 +169,7 @@ main() {
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         
         # PHẦN MỚI THÊM: Quét số lượng Node Online
-        printf "  ${GREEN}Tổng IP có thể dùng:${NC} "
+        printf "${PURPLE}◈${NC}  ${GREEN}Tổng IP:${NC} "
         total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
         echo -e "${PURPLE}$total_nodes${NC}"
         
