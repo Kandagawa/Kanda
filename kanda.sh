@@ -77,15 +77,17 @@ select_rotate_time() {
 }
 
 install_services() {
-    # Kiểm tra nếu chưa có tor hoặc jq thì mới hiện thanh cài đặt
-    if ! command -v tor &> /dev/null || ! command -v jq &> /dev/null; then
-        echo -e "\n  ${GREY}Đang cài đặt các gói cần thiết...${NC}"
+    cleanup
+    echo -e "\n  ${GREY}Đang kiểm tra hệ thống...${NC}"
+    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null || ! command -v jq &> /dev/null; then
         render_bar "Tiến trình 1" 20
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
         render_bar "Tiến trình 1" 100
-        echo -e ""
+    else
+        render_bar "Tiến trình 1" 100
     fi
+    echo -e "" 
 }
 
 config_privoxy() {
@@ -156,7 +158,7 @@ main() {
     init_alias
     init_colors
     clear
-    # Đảm bảo cài đặt công cụ trước khi vào vòng lặp chính
+    # Chạy kiểm tra hệ thống trước để cài jq/tor nếu thiếu
     install_services
     
     while true; do
@@ -166,8 +168,8 @@ main() {
         clear
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         
-        # Hiển thị số lượng IP sống
-        printf "  ${PURPLE}◈${NC} ${GREEN}Tổng IP có thể dùng:${NC} "
+        # Quét số lượng Node Online (đã có jq từ bước install_services nên không lỗi)
+        printf "  ${PURPLE}◈${NC} ${GREEN}Tổng IP:${NC} "
         total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
         echo -e "${PURPLE}$total_nodes${NC}"
         
