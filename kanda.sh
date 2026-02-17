@@ -79,6 +79,7 @@ select_rotate_time() {
 install_services() {
     cleanup
     echo -e "\n  ${GREY}Đang kiểm tra hệ thống...${NC}"
+    # Giữ nguyên logic kiểm tra: Thiếu thì cài, có rồi thì render_bar 100% rồi lướt qua
     if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null || ! command -v jq &> /dev/null; then
         render_bar "Tiến trình 1" 20
         pkg update -y > /dev/null 2>&1
@@ -158,9 +159,13 @@ main() {
     init_alias
     init_colors
     clear
-    # Chạy kiểm tra hệ thống trước để cài jq/tor nếu thiếu
-    install_services
+    echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
+    echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
     
+    # Bước cực kỳ quan trọng để jq không lỗi ở dưới:
+    # Gọi install_services một lần ở đây để đảm bảo jq được cài TRƯỚC khi dùng lệnh quét IP
+    install_services 
+
     while true; do
         stop_flag=false
         trap 'stop_flag=true' SIGINT
@@ -168,13 +173,14 @@ main() {
         clear
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         
-        # Quét số lượng Node Online (đã có jq từ bước install_services nên không lỗi)
+        # Bây giờ jq đã chắc chắn có mặt, lệnh này sẽ chạy ngon lành
         printf "  ${PURPLE}◈${NC} ${GREEN}Tổng IP:${NC} "
         total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
         echo -e "${PURPLE}$total_nodes${NC}"
         
         select_country
         select_rotate_time
+        install_services
         config_privoxy
         config_tor
         run_tor
