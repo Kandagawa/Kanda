@@ -106,7 +106,7 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
     if [[ -n "$country_code" ]]; then
-        # CHỈ THÊM LỌC IP SỐNG Ở ĐÂY (select(.running==true))
+        # Lọc IP sống (Running) để tránh bốc nhầm node die
         strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.running==true and .advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
         if [[ -n "$strong_nodes" ]]; then
             echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
@@ -167,6 +167,12 @@ main() {
         cleanup
         clear
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
+        
+        # PHẦN MỚI THÊM: Quét số lượng Node Online
+        printf "  ${GREEN}Tổng IP có thể dùng:${NC} "
+        total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
+        echo -e "${PURPLE}$total_nodes${NC}"
+        
         select_country
         select_rotate_time
         install_services
