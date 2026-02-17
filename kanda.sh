@@ -77,17 +77,15 @@ select_rotate_time() {
 }
 
 install_services() {
-    cleanup
-    echo -e "\n  ${GREY}Đang kiểm tra hệ thống...${NC}"
-    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null || ! command -v jq &> /dev/null; then
+    # Kiểm tra nếu chưa có tor hoặc jq thì mới hiện thanh cài đặt
+    if ! command -v tor &> /dev/null || ! command -v jq &> /dev/null; then
+        echo -e "\n  ${GREY}Đang cài đặt các gói cần thiết...${NC}"
         render_bar "Tiến trình 1" 20
         pkg update -y > /dev/null 2>&1
         pkg install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
         render_bar "Tiến trình 1" 100
-    else
-        render_bar "Tiến trình 1" 100
+        echo -e ""
     fi
-    echo -e "" 
 }
 
 config_privoxy() {
@@ -106,7 +104,6 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
     if [[ -n "$country_code" ]]; then
-        # Lọc IP sống (Running) để tránh bốc nhầm node die
         strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.running==true and .advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
         if [[ -n "$strong_nodes" ]]; then
             echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
@@ -159,8 +156,9 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
-    echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
+    # Đảm bảo cài đặt công cụ trước khi vào vòng lặp chính
+    install_services
+    
     while true; do
         stop_flag=false
         trap 'stop_flag=true' SIGINT
@@ -168,14 +166,13 @@ main() {
         clear
         echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         
-        # PHẦN MỚI THÊM: Quét số lượng Node Online
-        printf "  ${PURPLE}◈${NC} ${GREEN}Tổng IP:${NC} "
+        # Hiển thị số lượng IP sống
+        printf "  ${PURPLE}◈${NC} ${GREEN}Tổng IP có thể dùng:${NC} "
         total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
         echo -e "${PURPLE}$total_nodes${NC}"
         
         select_country
         select_rotate_time
-        install_services
         config_privoxy
         config_tor
         run_tor
