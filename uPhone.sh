@@ -13,7 +13,7 @@ G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; NC='\033[0m'
 W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
 clear
-echo -e "${P}UGPHONE AUTO BUYER PRO (NO-TOR)${NC}"
+echo -e "${P}UGPHONE AUTO BUYER PRO${NC}"
 echo -e "${GR}Nhắc nhở: Nên dùng VPN để đổi IP.${NC}"
 
 echo -ne "\n${C}❯${NC} ${W}Dán JSON Token:${NC} "
@@ -29,8 +29,9 @@ fi
 
 clear
 echo -e "${P}UGPHONE AUTO BUYER PRO${NC}"
-echo -e "${G}✅ ID: $LID - Đã sẵn sàng!${NC}"
+echo -e "${G}✅ ID: $LID - Sẵn sàng!${NC}"
 
+# Nhận quà ngầm
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "Content-Type: application/json;charset=UTF-8" \
 -H "terminal: web" -H "lang: vi" \
@@ -51,14 +52,16 @@ case $CH in
     *) echo -e "${R}Sai lựa chọn!${NC}"; exit 1;;
 esac
 
-echo -e "\n${Y}● Đang thực thi đơn hàng...${NC}"
+echo -e "\n${Y}● Đang gửi lệnh mua...${NC}"
 
+# Lấy Price ID và bắt lỗi MSG
 RES=$(curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
 -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
 -H "login-id: $LID" -H "access-token: $TOKEN" \
 -d "{\"order_type\":\"newpay\",\"period_time\":4,\"unit\":\"hour\",\"resource_type\":\"cloudphone\",\"resource_param\":{\"pay_mode\":\"subscription\",\"config_id\":\"8dd93fc7-27bc-35bf-b3e4-3f2000ceb746\",\"network_id\":\"$N\",\"count\":1,\"use_points\":3,\"points\":250}}")
 
-AMT=$(echo "$RES" | grep -oP '(?<="amount_id":")[^"]*')
+AMT=$(echo "$RES" | jq -r '.data.amount_id // empty')
+MSG_RES=$(echo "$RES" | jq -r '.msg')
 
 if [ -n "$AMT" ]; then 
     PAY=$(curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/payment" \
@@ -66,16 +69,17 @@ if [ -n "$AMT" ]; then
     -H "login-id: $LID" -H "access-token: $TOKEN" \
     -d "{\"amount_id\":\"$AMT\",\"pay_channel\":\"free\"}")
     
-    ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
+    ORD=$(echo "$PAY" | jq -r '.data.order_id // empty')
+    MSG_PAY=$(echo "$PAY" | jq -r '.msg')
     
     if [[ -n "$ORD" ]]; then
         echo -e "\n${G}✔ THÀNH CÔNG!${NC}"
         echo -e "${W}Mã đơn: ${C}$ORD${NC}"
     else
-        echo -e "\n${R}✘ LỖI THANH TOÁN: $PAY${NC}"
+        echo -e "\n${R}✘ THẤT BẠI: $MSG_PAY${NC}"
     fi
 else 
-    echo -e "\n${R}✘ LỖI LẤY GIÁ (Token hết hạn?)${NC}"
+    echo -e "\n${R}✘ LỖI HỆ THỐNG: $MSG_RES${NC}"
 fi
 
 echo -e "\n${GR}Gõ 'buy' để thực hiện tiếp.${NC}"
@@ -83,5 +87,5 @@ EOF
 
 chmod +x $PREFIX/bin/buy
 clear
-echo -e "\033[1;32m✅ HOÀN TẤT CÀI ĐẶT SIÊU TỐC!\033[0m"
+echo -e "\033[1;32m✅ HOÀN TẤT CÀI ĐẶT!\033[0m"
 echo -e "\033[1;37mGõ lệnh:\033[0m \033[1;36mbuy\033[0m\n"
