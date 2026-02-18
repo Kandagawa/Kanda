@@ -24,16 +24,19 @@ render_bar() {
 
 clear
 
-# --- BƯỚC 1: NHẬP LIỆU (CHẤP NHẬN ĐỊNH DẠNG JSON MỚI) ---
+# --- BƯỚC 1: NHẬP LIỆU (CHỐNG SPAM) ---
+# Xóa sạch bộ nhớ đệm đầu vào
 while read -t 0.1 -n 10000 discard; do :; done
 
 while true; do
     echo -ne "${C}❯${NC} ${W}Dán dữ liệu JSON mới:${NC} "
     read -r DATA
     
-    if [[ -z "$DATA" ]]; then continue; fi
+    # Nếu chuỗi quá ngắn (dưới 100 ký tự) thì bỏ qua, không báo lỗi để tránh spam
+    if [ ${#DATA} -lt 100 ]; then
+        continue
+    fi
 
-    # Lọc login_id và access_token theo định dạng 100% khớp với mẫu bạn gửi
     LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
     TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
 
@@ -115,5 +118,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 source ~/.bashrc
 
-echo -e "\033[32m✔ Đã cập nhật định dạng JSON 2026. Gõ 'buy' để chạy.\033[0m"
+echo -e "\n\033[32m✔ Đã sửa lỗi spam Enter. Gõ 'buy' để chạy.\033[0m"
 buy
