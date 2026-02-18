@@ -64,7 +64,7 @@ done
 
 # --- BƯỚC 3: LỌC NODE NGẪU NHIÊN & SỐNG ---
 clear
-echo -e "\n    ${P}●${NC} ${W}Đang bóc Node sống ngẫu nhiên...${NC}"
+echo -e "\n    ${P}●${NC} ${W}Hãy chờ tiến trình...${NC}"
 
 # Lấy danh sách các node Running, Fast, Stable và bóc ngẫu nhiên 30 node
 LIVEL_NODES=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq -r '.relays[] | select(.f | contains("V")) | .f' | shuf -n 30 | tr '\n' ',' | sed 's/,$//')
@@ -82,7 +82,7 @@ is_ready=false
 while read -r line; do
     if [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-        printf "\r    ${GR}Khởi tạo đường truyền: ${NC}${G}%d%%${NC} " "$percent"
+        printf "\r    ${GR}Kết nối mạng: ${NC}${G}%d%%${NC} " "$percent"
         if [ "$percent" -eq 100 ]; then 
             is_ready=true; sleep 1; break 
         fi
@@ -126,5 +126,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 
 clear
-echo -e "\n    \033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG (Lọc Node Ngẫu Nhi)!\033[0m"
+echo -e "\n    \033[1;32m✅ HOÀN THÀNH!\033[0m"
 echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
