@@ -17,7 +17,7 @@ render_bar() {
 }
 
 clear
-# BƯỚC 1: NHẬP LIỆU (Giữ nguyên logic chuẩn của bạn)
+# --- BƯỚC 1: NHẬP LIỆU (Giữ nguyên logic chuẩn của bạn) ---
 echo -ne "${C}◈${NC} ${W}Dán JSON:${NC} "
 read -r DATA
 
@@ -25,21 +25,21 @@ LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
 TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
 
 if [[ -z "$LID" || -z "$TOKEN" ]]; then
-    echo -e "${R}❌ Dữ liệu không hợp lệ!${NC}"
+    echo -e "  ${R}❌ Dữ liệu không hợp lệ!${NC}"
     exit 1
 fi
 
-echo -e "  ${G}●${NC} ${W}Xác thực:${NC} ${GR}${LID:0:10}... OK${NC}"
+echo -e "  ${G}●${NC} ${W}ID Account:${NC} ${GR}${LID:0:12}... OK${NC}"
 
-# TỰ ĐỘNG NHẬN QUÀ
+# Tự động nhận quà
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "Content-Type: application/json;charset=UTF-8" \
 -H "terminal: web" -H "lang: vi" -H "update-date: $TODAY" \
 -H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null
 
-# BƯỚC 2: CHỌN VÙNG MUA
+# --- BƯỚC 2: CHỌN VÙNG MUA ---
 echo -e "\n${C}◈${NC} ${W}VÙNG:${NC} ${Y}1${NC}.JP ${Y}2${NC}.SG ${Y}3${NC}.US ${Y}4${NC}.DE ${Y}5${NC}.HK"
-echo -ne "${C}◈${NC} ${W}Chọn:${NC} "
+echo -ne "  ${C}◈${NC} ${W}Chọn:${NC} "
 read -r CH
 case $CH in 
     1) N="07fb1cda-f347-7e09-f50d-a8d894f2ffea"; CC="jp";;
@@ -50,7 +50,7 @@ case $CH in
     *) exit 1;;
 esac
 
-# BƯỚC 3: KẾT NỐI (ẨN TOR)
+# --- BƯỚC 3: KẾT NỐI (ẨN TOR LOG) ---
 pkill -9 tor > /dev/null 2>&1
 rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
@@ -70,9 +70,10 @@ while read -r line; do
     fi
 done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
-# BƯỚC 4: THỰC HIỆN MUA HÀNG
+# --- BƯỚC 4: THỰC HIỆN MUA HÀNG ---
 if [ "$is_ready" = true ]; then
     echo -e "\n\n  ${G}🚀${NC} ${W}Đang gửi lệnh mua...${NC}"
+    sleep 1
     
     RES=$(curl --socks5-hostname 127.0.0.1:9050 -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
     -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
@@ -96,9 +97,10 @@ if [ "$is_ready" = true ]; then
             echo -e "  ${R}❌ LỖI GIAO DỊCH: $PAY${NC}"
         fi
     else 
-        echo -e "  ${R}❌ LỖI LẤY GIÁ: $RES${NC}"
+        echo -e "  ${R}❌ LỖI GIÁ: $RES${NC}"
     fi
 fi
 
 pkill -9 tor > /dev/null 2>&1
-echo -ne "\n${GR}Xong.${NC}"
+echo -ne "\n${GR}Nhấn Enter để kết thúc.${NC}"
+read -r
