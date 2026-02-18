@@ -1,14 +1,14 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # --- 1. SETUP HỆ THỐNG ---
-echo -e "\033[1;33m📦 Đang tối ưu hệ thống... \033[0m"
+echo -e "\033[1;33m📦 Đang tối ưu hệ thống & Lọc Node sống... \033[0m"
 pkg install curl jq tor -y > /dev/null 2>&1
 
 # --- 2. TẠO LỆNH BUY ---
 cat << 'EOF' > $PREFIX/bin/buy
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Bảng màu nghệ thuật
+# Bảng màu chuyên nghiệp
 G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; NC='\033[0m'
 W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
@@ -18,12 +18,11 @@ while true; do
     echo -e "\n    ${P}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}"
     echo -e "    ${P}┃${NC}     ${W}UGPHONE TERMINAL EXECUTOR${NC}      ${P}┃${NC}"
     echo -e "    ${P}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
-    echo -e "    ${GR}  Status: Waiting for Auth Data...${NC}\n"
+    echo -e "    ${GR}  Trạng thái: Đang chờ dữ liệu Auth...${NC}\n"
     
-    # Dọn rác bộ nhớ đệm
     while read -t 0.1 -n 10000 discard; do :; done
     
-    echo -ne "    ${C}❯${NC} ${W}Dán JSON Token:${NC} "
+    echo -ne "    ${C}❯${NC} ${W}Dán JSON tại đây:${NC} "
     read -r DATA
     
     if [ ${#DATA} -gt 150 ]; then
@@ -31,7 +30,7 @@ while true; do
         TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
         if [[ -n "$LID" && -n "$TOKEN" ]]; then break; fi
     fi
-    echo -e "\n    ${R}✘ Cảnh báo: Dữ liệu không hợp lệ!${NC}"
+    echo -e "\n    ${R}✘ Lỗi: Dữ liệu JSON không hợp lệ!${NC}"
     sleep 1.2
 done
 
@@ -51,7 +50,7 @@ while true; do
     echo -e "      ${C}03.${NC} Hoa Kỳ (US)      ${C}04.${NC} Đức (DE)"
     echo -e "      ${C}05.${NC} Hồng Kông (HK)"
     echo -e "\n    ${GR}────────────────────────────────────────${NC}"
-    echo -ne "    ${C}❯${NC} ${W}Nhập mã số:${NC} "
+    echo -ne "    ${C}❯${NC} ${W}Nhập số:${NC} "
     read -r CH
     
     case $CH in 
@@ -63,32 +62,36 @@ while true; do
     esac
 done
 
-# --- BƯỚC 3: KẾT NỐI TỰ ĐỘNG ---
+# --- BƯỚC 3: LỌC NODE NGẪU NHIÊN & SỐNG ---
 clear
-echo -e "\n    ${P}●${NC} ${W}Đang thiết lập đường truyền an toàn...${NC}"
+echo -e "\n    ${P}●${NC} ${W}Đang bóc Node sống ngẫu nhiên...${NC}"
+
+# Lấy danh sách các node Running, Fast, Stable và bóc ngẫu nhiên 30 node
+LIVEL_NODES=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq -r '.relays[] | select(.f | contains("V")) | .f' | shuf -n 30 | tr '\n' ',' | sed 's/,$//')
+
 pkill -9 tor > /dev/null 2>&1
 rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
 TORRC="$PREFIX/etc/tor/torrc_mua"
-# Bỏ ExitNodes để Tor tự chọn đường truyền tốt nhất
+
+# Cấu hình Tor không giới hạn vùng để tối ưu tốc độ nhưng dùng EntryNodes sống
 echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 9050" > "$TORRC"
+[[ -n "$LIVEL_NODES" ]] && echo -e "EntryNodes $LIVEL_NODES" >> "$TORRC"
 
 is_ready=false
 while read -r line; do
     if [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-        printf "\r    ${GR}Mã hóa dữ liệu: ${NC}${G}%d%%${NC} " "$percent"
+        printf "\r    ${GR}Khởi tạo đường truyền: ${NC}${G}%d%%${NC} " "$percent"
         if [ "$percent" -eq 100 ]; then 
-            is_ready=true
-            sleep 1
-            break 
+            is_ready=true; sleep 1; break 
         fi
     fi
 done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
 # --- BƯỚC 4: GIAO DỊCH ---
 if [ "$is_ready" = true ]; then
-    echo -e "\n\n    ${Y}●${NC} ${W}Đang gửi lệnh mua tới Server...${NC}"
+    echo -e "\n\n    ${Y}●${NC} ${W}Đang thực thi lệnh mua...${NC}"
     
     RES=$(curl --socks5-hostname 127.0.0.1:9050 -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
     -H "Content-Type: application/json;charset=UTF-8" -H "login-id: $LID" -H "access-token: $TOKEN" \
@@ -107,15 +110,15 @@ if [ "$is_ready" = true ]; then
             echo -e "    ${G}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
             echo -e "    ${W}Mã Đơn:${NC} ${C}$ORD${NC}\n"
         else 
-            echo -e "\n    ${R}✘ Lỗi thanh toán:${NC} $PAY"
+            echo -e "\n    ${R}✘ Giao dịch thất bại:${NC} $PAY"
         fi
     else 
-        echo -e "\n    ${R}✘ Lỗi hệ thống: Không phản hồi giá.${NC}"
+        echo -e "\n    ${R}✘ Lỗi: Không lấy được thông tin gói.${NC}"
     fi
 fi
 
 pkill -9 tor > /dev/null 2>&1
-echo -e "    ${GR}Gõ 'buy' để khởi tạo phiên mới.${NC}\n"
+echo -e "    ${GR}Gõ 'buy' để thực hiện lại.${NC}\n"
 EOF
 
 # --- 3. HOÀN TẤT ---
@@ -123,5 +126,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 
 clear
-echo -e "\n    \033[1;32m✅ CẤU HÌNH GIAO DIỆN PRO THÀNH CÔNG!\033[0m"
-echo -e "    \033[1;37mSử dụng lệnh: \033[1;36mbuy\033[0m\n"
+echo -e "\n    \033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG (Lọc Node Ngẫu Nhiên)!\033[0m"
+echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
