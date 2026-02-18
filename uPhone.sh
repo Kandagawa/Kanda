@@ -1,10 +1,13 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # --- 1. SETUP HỆ THỐNG ---
-echo -e "\033[1;33m📦 Đang tối ưu hhống... \033[0m"
+echo -e "\033[1;33m📦 Đang tối ưu hệ thống... \033[0m"
 pkg install curl jq tor lsof -y > /dev/null 2>&1
 
 # --- 2. TẠO LỆNH BUY ---
+# Xóa file cũ để tránh xung đột đường dẫn /tmp
+rm -f $PREFIX/bin/buy
+
 cat << 'EOF' > $PREFIX/bin/buy
 #!/data/data/com.termux/files/usr/bin/bash
 
@@ -52,26 +55,35 @@ case $CH in
     *) echo -e "${R}Sai lựa chọn!${NC}"; exit 1;;
 esac
 
-# --- BƯỚC 3: KẾT NỐI TOR (BỎ TIMEOUT - LỌC NODE SỐNG MẠNH) ---
+# --- BƯỚC 3: KẾT NỐI TOR (FIX LỖI JQ & PATH) ---
 clear
 echo -e "\n    ${P}●${NC} ${W}Đang bóc Node chất lượng cao...${NC}"
 pkill -9 tor > /dev/null 2>&1
 rm -rf $HOME/.tor_data
 mkdir -p "$HOME/.tor_data" && chmod 700 "$HOME/.tor_data"
 
-# Lọc Node: Đang chạy, Tốc độ cao, Ổn định (Fast, Stable)
-LIVEL_NODES=$(curl -s --connect-timeout 10 "https://onionoo.torproject.org/summary?running=true&fast=true&stable=true" | jq -r '.relays[].f' | shuf -n 25 | tr '\n' ',' | sed 's/,$//')
+# Vòng lặp lấy Node cho đến khi thành công (Chống lỗi jq)
+while true; do
+    JSON_DATA=$(curl -s --connect-timeout 10 "https://onionoo.torproject.org/summary?running=true&fast=true")
+    LIVEL_NODES=$(echo "$JSON_DATA" | jq -r '.relays[].f' 2>/dev/null | shuf -n 25 | tr '\n' ',' | sed 's/,$//')
+    
+    if [[ -n "$LIVEL_NODES" && "$LIVEL_NODES" != "null" ]]; then
+        break
+    else
+        echo -ne "\r    ${Y}⚡ Đang tải lại danh sách Node...${NC}"
+        sleep 2
+    fi
+done
 
 TORRC="$HOME/.tor_data/torrc"
 echo -e "DataDirectory $HOME/.tor_data\nSocksPort 127.0.0.1:9050" > "$TORRC"
-[[ -n "$LIVEL_NODES" ]] && echo "EntryNodes $LIVEL_NODES" >> "$TORRC"
+echo "EntryNodes $LIVEL_NODES" >> "$TORRC"
 
 TOR_LOG="$HOME/.tor_data/tor.log"
 > "$TOR_LOG"
 tor -f "$TORRC" > "$TOR_LOG" 2>&1 &
 
 is_ready=false
-# Vòng lặp vô tận cho đến khi xong, không Timeout
 while true; do
     if [ -f "$TOR_LOG" ] && grep -q "Bootstrapped 100%" "$TOR_LOG"; then
         printf "\r    ${GR}Tiến trình: ${NC}${G}100%% (Đã kết nối)${NC} "
@@ -84,7 +96,6 @@ while true; do
     fi
     
     if ! pgrep -x "tor" > /dev/null; then
-        echo -e "\n    ${R}✘ Tor lỗi khởi động. Đang thử lại...${NC}"
         tor -f "$TORRC" > "$TOR_LOG" 2>&1 &
     fi
     sleep 0.5
@@ -105,7 +116,7 @@ if [ "$is_ready" = true ]; then
         ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
         [[ -n "$ORD" ]] && echo -e "\n    ${G}✔ THÀNH CÔNG!${NC} Mã: ${C}$ORD${NC}" || echo -e "\n    ${R}✘ Lỗi: $PAY${NC}"
     else 
-        echo -e "\n    ${R}✘ Lỗi: Không lấy được giá (Server/JSON).${NC}"
+        echo -e "\n    ${R}✘ Lỗi: Không lấy được giá (Check lại JSON).${NC}"
     fi
 fi
 
@@ -117,5 +128,5 @@ EOF
 # --- 3. HOÀN TẤT ---
 chmod +x $PREFIX/bin/buy
 clear
-echo -e "\n    \033[1;32m✅ HOÀN TẤT: Đã bỏ Timeout & Tối ưu Node sống!\033[0m"
+echo -e "\n    \033[1;32m✅ ĐÃ FIX TRIỆT ĐỂ LỖI JQ VÀ ĐƯỜNG DẪN!\033[0m"
 echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
