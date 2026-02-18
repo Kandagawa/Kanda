@@ -2,7 +2,7 @@
 
 # --- 1. SETUP HỆ THỐNG ---
 clear
-echo -e "    \033[1;33m📦 Đang tối ưu hệ thống... \033[0m"
+echo -e "    \033[1;33m📦 Thiết lập lần đầu... \033[0m"
 pkg update -y &> /dev/null
 pkg install curl jq coreutils -y &> /dev/null
 
@@ -15,10 +15,10 @@ W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
 while true; do
     clear
-    echo -e "\n    ${P}[UGPHONE AUTO BUYER PRO]${NC}"
-    echo -e "    ${GR}Trạng thái: Đang chờ Auth...${NC}\n"
+    echo -e "\n    ${P}[UGPHONE CỦA ${G}HANAMI]${NC}"
+    echo -e "    ${GR}*Lưu ý: Nên thay đổi IP khi thực hiện mua...${NC}\n"
     
-    echo -ne "    ${C}❯${NC} ${W}Dán JSON Token:${NC} "
+    echo -ne "    ${C}❯${NC} ${W}Dán JSON:${NC} "
     read -r DATA
     
     LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
@@ -31,16 +31,16 @@ done
 
 clear
 echo -e "\n    ${P}[UGPHONE AUTO BUYER PRO]${NC}"
-echo -e "    ${G}✅ ID: $LID - Sẵn sàng!${NC}"
+echo -e "    ${G}✅ ID: $LID ${NC}"
 
 # Nhận quà ngầm
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "Content-Type: application/json;charset=UTF-8" \
 -H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null &
 
-echo -e "\n    ${W}Chọn khu vực:${NC}"
+echo -e "\n    ${W}Chọn máy chủ:${NC}"
 echo -e "      ${C}1.${NC} Nhật (JP)     ${C}2.${NC} Sing (SG)     ${C}3.${NC} Mỹ (US)"
-echo -e "      ${C}4.${NC} Đức (DE)      ${C}5.${NC} Hồng Kông (HK)"
+echo -e "      ${C}4.${NC} Đức (DE)      ${C}5.${NC} Hong Kong (HK)"
 echo -ne "\n    ${C}❯${NC} ${W}Nhập số:${NC} "
 read -r CH
 
@@ -82,7 +82,7 @@ else
     echo -e "\n    ${R}✘ LỖI: $MSG_RES${NC}"
 fi
 
-echo -e "\n    ${GR}Gõ 'buy' để thực hiện tiếp.${NC}"
+echo -e "\n    ${GR}Kết thúc quá trình, tiếp tục gõ "buy".${NC}"
 EOF
 
 # --- 3. HOÀN TẤT ---
