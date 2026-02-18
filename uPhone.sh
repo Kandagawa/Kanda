@@ -1,14 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # --- 1. SETUP HỆ THỐNG ---
-echo -e "\033[1;33m📦 Đang tối ưu hệ thống & Chống ng... \033[0m"
-termux-wake-lock
-pkg install curl jq tor -y > /dev/null 2>&1
-
-# --- 2. TẠO LỆNH BUY ---
-#!/data/data/com.termux/files/usr/bin/bash
-
-# --- 1. SETUP HỆ THỐNG ---
 echo -e "\033[1;33m📦 Đang tối ưu hệ thống... \033[0m"
 # Đã loại bỏ termux-wake-lock (chống ngủ) theo yêu cầu
 pkg install curl jq tor lsof -y > /dev/null 2>&1
