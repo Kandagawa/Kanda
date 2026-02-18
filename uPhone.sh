@@ -13,8 +13,8 @@ W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
 while true; do
     clear
-    echo -e "\n    ${P}[UGPHONE AUTO BUY TRIAL]${NC}"
-    echo -e "    ${R}*Lưu ý: Nên thay đổi IP khi thực hiện mua...${NC}\n"
+    echo -e "\n    ${P}[UGPHONE CỦA ${G}HANAMI]${NC}"
+    echo -e "    ${GR}*Lưu ý: Nên thay đổi IP khi thực hiện mua...${NC}\n"
     
     echo -ne "    ${C}❯${NC} ${W}Dán JSON:${NC} "
     read -r DATA
@@ -28,12 +28,16 @@ while true; do
 done
 
 clear
-echo -e "\n    ${P}[UGPHONE AUTO BUY TRIAL]${NC}"
+echo -e "\n    ${P}[UGPHONE AUTO BUYER PRO]${NC}"
 echo -e "    ${G}✅ ID: $LID ${NC}"
+sleep 1
 
+echo -e "    ${Y}● Kiểm tra kim cương...${NC}"
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "Content-Type: application/json;charset=UTF-8" \
--H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null &
+-H "terminal: web" -H "lang: vi" \
+-H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null 2>&1
+sleep 1
 
 echo -e "\n    ${W}Chọn máy chủ:${NC}"
 echo -e "      ${C}1.${NC} Nhật (JP)"
@@ -54,6 +58,7 @@ case $CH in
 esac
 
 echo -e "\n    ${Y}● Đang gửi lệnh mua...${NC}"
+sleep 1
 
 RES=$(curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
 -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
@@ -73,19 +78,19 @@ if [ -n "$AMT" ]; then
     MSG_PAY=$(echo "$PAY" | jq -r '.msg')
     
     if [[ -n "$ORD" ]]; then
-        echo -e "\n    ${G}✔ THÀNH CÔNG!${NC}"
+        echo -e "\n    ${G}✔ MUA THÀNH CÔNG!${NC}"
         echo -e "    ${W}Mã đơn: ${C}$ORD${NC}"
     else
         echo -e "\n    ${R}✘ THẤT BẠI: $MSG_PAY${NC}"
     fi
 else 
-    echo -e "\n    ${R}✘ LỖI: $MSG_RES${NC}"
+    echo -e "\n    ${R}✘ LỖI HỆ THỐNG: $MSG_RES${NC}"
 fi
 
-echo -e "\n    ${GR}Kết thúc quá trình, tiếp tục gõ \"buy\".${NC}"
+echo -e "\n    ${GR}Tiếp tục mua, gõ \"buy\".${NC}"
 EOF
 
 chmod +x $PREFIX/bin/buy
 clear
-echo -e "\n    \033[1;32m✅ HOÀN TẤT CÀI ĐẶT!\033[0m"
+echo -e "\n    \033[1;32m✅ HOÀN TẤT \033[0m"
 echo -e "    \033[1;37mGõ lệnh:\033[0m \033[1;36mbuy\033[0m\n"
