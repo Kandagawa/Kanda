@@ -2,14 +2,13 @@
 
 # --- 1. SETUP HỆ THỐNG ---
 echo -e "\033[1;33m📦 Đang tối ưu hệ thống... \033[0m"
-# Đã loại bỏ termux-wake-lock (chống ngủ) theo yêu cầu
 pkg install curl jq tor lsof -y > /dev/null 2>&1
 
 # --- 2. TẠO LỆNH BUY ---
 cat << 'EOF' > $PREFIX/bin/buy
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Bảng màu
+# Màu sắc
 G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; NC='\033[0m'
 W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
@@ -53,35 +52,44 @@ case $CH in
     *) echo -e "${R}Sai lựa chọn!${NC}"; exit 1;;
 esac
 
-# --- BƯỚC 3: KẾT NỐI TOR (FIX LỖI READY) ---
+# --- BƯỚC 3: KẾT NỐI TOR (FIX LỖI PATH LOG) ---
 clear
 echo -e "\n    ${P}●${NC} ${W}Đang bóc Node sống & Thiết lập Tunnel...${NC}"
 pkill -9 tor > /dev/null 2>&1
-rm -rf $PREFIX/var/lib/tor/*
-mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
+rm -rf $HOME/.tor_data
+mkdir -p "$HOME/.tor_data" && chmod 700 "$HOME/.tor_data"
 
 LIVEL_NODES=$(curl -s --connect-timeout 5 "https://onionoo.torproject.org/summary?running=true" | jq -r '.relays[].f' | shuf -n 15 | tr '\n' ',' | sed 's/,$//')
 
-TORRC="$PREFIX/etc/tor/torrc_mua"
-echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 127.0.0.1:9050" > "$TORRC"
+TORRC="$HOME/.tor_data/torrc"
+echo -e "DataDirectory $HOME/.tor_data\nSocksPort 127.0.0.1:9050" > "$TORRC"
 [[ -n "$LIVEL_NODES" ]] && echo "EntryNodes $LIVEL_NODES" >> "$TORRC"
 
-# Chạy ngầm và theo dõi qua log
-TOR_LOG="/tmp/tor.log"
+# Thay đổi đường dẫn LOG sang thư mục HOME để chắc chắn ghi được file
+TOR_LOG="$HOME/.tor_data/tor.log"
 > "$TOR_LOG"
 tor -f "$TORRC" > "$TOR_LOG" 2>&1 &
 
 is_ready=false
+count=0
 while true; do
-    if grep -q "Bootstrapped 100%" "$TOR_LOG"; then
+    if [ -f "$TOR_LOG" ] && grep -q "Bootstrapped 100%" "$TOR_LOG"; then
         printf "\r    ${GR}Tiến trình: ${NC}${G}100%% (Sẵn sàng)${NC} "
         is_ready=true; break
     fi
-    percent=$(grep -oP "Bootstrapped \d+%" "$TOR_LOG" | tail -1 | grep -oP "\d+")
-    [[ -n "$percent" ]] && printf "\r    ${GR}Tiến trình: ${NC}${G}%s%%${NC} " "$percent"
+    
+    if [ -f "$TOR_LOG" ]; then
+        percent=$(grep -oP "Bootstrapped \d+%" "$TOR_LOG" | tail -1 | grep -oP "\d+")
+        [[ -n "$percent" ]] && printf "\r    ${GR}Tiến trình: ${NC}${G}%s%%${NC} " "$percent"
+    fi
     
     if ! pgrep -x "tor" > /dev/null; then
         echo -e "\n    ${R}✘ Tor đã dừng đột ngột.${NC}"; break
+    fi
+    
+    ((count++))
+    if [ $count -gt 80 ]; then
+        echo -e "\n    ${R}✘ Quá thời gian kết nối (Timeout).${NC}"; break
     fi
     sleep 0.5
 done
@@ -101,18 +109,17 @@ if [ "$is_ready" = true ]; then
         ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
         [[ -n "$ORD" ]] && echo -e "\n    ${G}✔ THÀNH CÔNG!${NC} Mã: ${C}$ORD${NC}" || echo -e "\n    ${R}✘ Lỗi: $PAY${NC}"
     else 
-        echo -e "\n    ${R}✘ Lỗi: Server bận hoặc JSON hết hạn.${NC}"
+        echo -e "\n    ${R}✘ Lỗi: Server bận hoặc JSON sai.${NC}"
     fi
 fi
 
 pkill -9 tor > /dev/null 2>&1
-rm -f "$TOR_LOG"
+rm -rf "$HOME/.tor_data"
 echo -e "\n    ${GR}Gõ 'buy' để thực hiện đơn mới.${NC}\n"
 EOF
 
 # --- 3. HOÀN TẤT ---
 chmod +x $PREFIX/bin/buy
-grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 clear
-echo -e "\n    \033[1;32m✅ ĐÃ FIX LỖI & LOẠI BỎ CHỐNG NGỦ!\033[0m"
-echo -e "    \033[1;37mSử dụng lệnh: \033[1;36mbuy\033[0m\n"
+echo -e "\n    \033[1;32m✅ ĐÃ FIX LỖI GHI FILE LOG!\033[0m"
+echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
