@@ -1,8 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # --- 1. SETUP HỆ THỐNG ---
-echo -e "\033[1;33m📦 Đang tối ưu hệ thống & Kích hoạt chống ngủ... \033[0m"
-termux-wake-lock
+echo -e "\033[1;33m📦 Đang tối ưu hệ thống & Lọc Node sống... \033[0m"
 pkg install curl jq tor -y > /dev/null 2>&1
 
 # --- 2. TẠO LỆNH BUY ---
@@ -63,45 +62,36 @@ while true; do
     esac
 done
 
-# --- BƯỚC 3: LỌC NODE SIÊU TỐC ---
+# --- BƯỚC 3: LỌC NODE NGẪU NHIÊN & SỐNG ---
 clear
-echo -e "\n    ${P}●${NC} ${W}Đang kết nối đường truyền ngẫu nhiên...${NC}"
+echo -e "\n    ${P}●${NC} ${W}Đang bóc Node sống ngẫu nhiên...${NC}"
 
-# Tối ưu hóa: Lấy danh sách rút gọn (summary) thay vì full data để giảm thời gian download
-# Bốc ngẫu nhiên 15 Node từ hàng nghìn Node Valid
-LIVEL_NODES=$(curl -s --connect-timeout 5 "https://onionoo.torproject.org/summary?running=true" | jq -r '.relays[].f' | shuf -n 15 | tr '\n' ',' | sed 's/,$//')
+# Lấy danh sách các node Running, Fast, Stable và bóc ngẫu nhiên 30 node
+LIVEL_NODES=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq -r '.relays[] | select(.f | contains("V")) | .f' | shuf -n 30 | tr '\n' ',' | sed 's/,$//')
 
 pkill -9 tor > /dev/null 2>&1
 rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
 TORRC="$PREFIX/etc/tor/torrc_mua"
 
-echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 127.0.0.1:9050" > "$TORRC"
-# Chỉ sử dụng EntryNodes nếu lấy được danh sách, nếu không Tor sẽ tự chọn (để tránh treo)
+# Cấu hình Tor không giới hạn vùng để tối ưu tốc độ nhưng dùng EntryNodes sống
+echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 9050" > "$TORRC"
 [[ -n "$LIVEL_NODES" ]] && echo -e "EntryNodes $LIVEL_NODES" >> "$TORRC"
 
 is_ready=false
-# Giảm thời gian khởi tạo bằng cách không dùng stdbuf nếu không cần thiết
-tor -f "$TORRC" 2>/dev/null | while read -r line; do
+while read -r line; do
     if [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-        printf "\r    ${GR}Mã hóa: ${NC}${G}%d%%${NC} " "$percent"
+        printf "\r    ${GR}Khởi tạo đường truyền: ${NC}${G}%d%%${NC} " "$percent"
         if [ "$percent" -eq 100 ]; then 
-            echo "OK" > /tmp/tor_status
-            break 
+            is_ready=true; sleep 1; break 
         fi
     fi
-done
-
-if [ -f /tmp/tor_status ]; then
-    is_ready=true
-    rm /tmp/tor_status
-    sleep 0.5
-fi
+done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
 # --- BƯỚC 4: GIAO DỊCH ---
 if [ "$is_ready" = true ]; then
-    echo -e "\n\n    ${Y}●${NC} ${W}Đang gửi lệnh mua...${NC}"
+    echo -e "\n\n    ${Y}●${NC} ${W}Đang thực thi lệnh mua...${NC}"
     
     RES=$(curl --socks5-hostname 127.0.0.1:9050 -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
     -H "Content-Type: application/json;charset=UTF-8" -H "login-id: $LID" -H "access-token: $TOKEN" \
@@ -120,15 +110,15 @@ if [ "$is_ready" = true ]; then
             echo -e "    ${G}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
             echo -e "    ${W}Mã Đơn:${NC} ${C}$ORD${NC}\n"
         else 
-            echo -e "\n    ${R}✘ Thất bại:${NC} $PAY"
+            echo -e "\n    ${R}✘ Giao dịch thất bại:${NC} $PAY"
         fi
     else 
-        echo -e "\n    ${R}✘ Lỗi: Server không phản hồi gói giá.${NC}"
+        echo -e "\n    ${R}✘ Lỗi: Không lấy được thông tin gói.${NC}"
     fi
 fi
 
 pkill -9 tor > /dev/null 2>&1
-echo -e "    ${GR}Gõ 'buy' để thực hiện đơn mới.${NC}\n"
+echo -e "    ${GR}Gõ 'buy' để thực hiện lại.${NC}\n"
 EOF
 
 # --- 3. HOÀN TẤT ---
@@ -136,5 +126,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 
 clear
-echo -e "\n    \033[1;32m✅ ĐÃ CẤU HÌNH LIGHTNING SPlEED!\033[0m"
-echo -e "    \033[1;37mSử dụng lệnh: \033[1;36mbuy\033[0m\n"
+echo -e "\n    \033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG (Lọc Node Ngẫu Nhiên)!\033[0m"
+echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
