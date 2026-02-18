@@ -1,38 +1,38 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # --- 1. SETUP HỆ THỐNG ---
-echo -e "\033[1;33m📦 Đang kiểm tra hệ thống... \033[0m"
+echo -e "\033[1;33m📦 Đang tối ưu hệ thống... \033[0m"
 pkg install curl jq tor -y > /dev/null 2>&1
 
 # --- 2. TẠO LỆNH BUY ---
 cat << 'EOF' > $PREFIX/bin/buy
 #!/data/data/com.termux/files/usr/bin/bash
 
-G='\033[32m'; R='\033[31m'; Y='\033[33m'; C='\033[36m'; NC='\033[0m'
-W='\033[37m'; GR='\033[90m'; P='\033[38;5;141m'
+# Bảng màu nghệ thuật
+G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; NC='\033[0m'
+W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
 # --- BƯỚC 1: XÁC THỰC JSON ---
 while true; do
     clear
-    echo -e "${P}●${NC} ${W}UGPHONE BUYER - XÁC THỰC${NC}"
-    echo -e "${GR}──────────────────────────────────────────${NC}"
+    echo -e "\n    ${P}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}"
+    echo -e "    ${P}┃${NC}     ${W}UGPHONE TERMINAL EXECUTOR${NC}      ${P}┃${NC}"
+    echo -e "    ${P}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
+    echo -e "    ${GR}  Status: Waiting for Auth Data...${NC}\n"
     
     # Dọn rác bộ nhớ đệm
     while read -t 0.1 -n 10000 discard; do :; done
     
-    echo -ne "${C}❯${NC} ${W}Dán dữ liệu JSON:${NC} "
+    echo -ne "    ${C}❯${NC} ${W}Dán JSON Token:${NC} "
     read -r DATA
     
     if [ ${#DATA} -gt 150 ]; then
         LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
         TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
-
-        if [[ -n "$LID" && -n "$TOKEN" ]]; then
-            break
-        fi
+        if [[ -n "$LID" && -n "$TOKEN" ]]; then break; fi
     fi
-    echo -e "\n${R}✘ Dữ liệu không hợp lệ! Vui lòng thử lại.${NC}"
-    sleep 1.5
+    echo -e "\n    ${R}✘ Cảnh báo: Dữ liệu không hợp lệ!${NC}"
+    sleep 1.2
 done
 
 # Nhận quà ngầm
@@ -43,43 +43,44 @@ curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 # --- BƯỚC 2: CHỌN VÙNG ---
 while true; do
     clear
-    echo -e "${P}●${NC} ${W}Xác thực thành công:${NC} ${G}$LID${NC}"
-    echo -e "${GR}──────────────────────────────────────────${NC}"
-    echo -e "${W}Chọn vùng muốn mua:${NC}"
-    echo -e "  ${C}1.${NC} Nhật Bản (JP)    ${C}2.${NC} Singapore (SG)"
-    echo -e "  ${C}3.${NC} Hoa Kỳ (US)      ${C}4.${NC} Đức (DE)"
-    echo -e "  ${C}5.${NC} Hồng Kông (HK)"
-    echo -e "${GR}──────────────────────────────────────────${NC}"
-    echo -ne "${C}❯${NC} ${W}Nhập số:${NC} "
+    echo -e "\n    ${P}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}"
+    echo -e "    ${P}┃${NC}    ${G}ID:${NC} ${W}${LID:0:20}...${NC}      ${P}┃${NC}"
+    echo -e "    ${P}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
+    echo -e "    ${W}Vui lòng chọn khu vực giao dịch:${NC}\n"
+    echo -e "      ${C}01.${NC} Nhật Bản (JP)    ${C}02.${NC} Singapore (SG)"
+    echo -e "      ${C}03.${NC} Hoa Kỳ (US)      ${C}04.${NC} Đức (DE)"
+    echo -e "      ${C}05.${NC} Hồng Kông (HK)"
+    echo -e "\n    ${GR}────────────────────────────────────────${NC}"
+    echo -ne "    ${C}❯${NC} ${W}Nhập mã số:${NC} "
     read -r CH
     
     case $CH in 
-        1) N="07fb1cda-f347-7e09-f50d-a8d894f2ffea"; CC="jp"; break;;
-        2) N="3731f6bf-b812-e983-872b-152cdab81276"; CC="sg"; break;;
-        3) N="b0b20248-b103-b041-3480-e90675c57a4f"; CC="us"; break;;
-        4) N="9f1980ab-6d4b-5192-a19f-c6d4bc5d3a47"; CC="de"; break;;
-        5) N="82542031-4021-397a-9774-4b5311096a66"; CC="hk"; break;;
+        1|01) N="07fb1cda-f347-7e09-f50d-a8d894f2ffea"; break;;
+        2|02) N="3731f6bf-b812-e983-872b-152cdab81276"; break;;
+        3|03) N="b0b20248-b103-b041-3480-e90675c57a4f"; break;;
+        4|04) N="9f1980ab-6d4b-5192-a19f-c6d4bc5d3a47"; break;;
+        5|05) N="82542031-4021-397a-9774-4b5311096a66"; break;;
     esac
 done
 
-# --- BƯỚC 3: THIẾT LẬP ĐƯỜNG TRUYỀN (ẨN DANH) ---
+# --- BƯỚC 3: KẾT NỐI TỰ ĐỘNG ---
 clear
-echo -e "${P}●${NC} ${W}Đang khởi tạo đường truyền bảo mật...${NC}"
+echo -e "\n    ${P}●${NC} ${W}Đang thiết lập đường truyền an toàn...${NC}"
 pkill -9 tor > /dev/null 2>&1
 rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
 TORRC="$PREFIX/etc/tor/torrc_mua"
-echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 9050\nExitNodes {$CC}\nStrictNodes 1" > "$TORRC"
+# Bỏ ExitNodes để Tor tự chọn đường truyền tốt nhất
+echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 9050" > "$TORRC"
 
 is_ready=false
 while read -r line; do
     if [[ "$line" == *"Bootstrapped"* ]]; then
         percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-        # Render thanh tiến trình đơn giản
-        printf "\r  ${GR}Tiến trình: ${W}%d%%${NC} " "$percent"
+        printf "\r    ${GR}Mã hóa dữ liệu: ${NC}${G}%d%%${NC} " "$percent"
         if [ "$percent" -eq 100 ]; then 
             is_ready=true
-            sleep 1 # Chờ 1s sau khi đạt 100% như yêu cầu
+            sleep 1
             break 
         fi
     fi
@@ -87,7 +88,7 @@ done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
 # --- BƯỚC 4: GIAO DỊCH ---
 if [ "$is_ready" = true ]; then
-    echo -e "\n\n${Y}●${NC} ${W}Đang gửi yêu cầu mua...${NC}"
+    echo -e "\n\n    ${Y}●${NC} ${W}Đang gửi lệnh mua tới Server...${NC}"
     
     RES=$(curl --socks5-hostname 127.0.0.1:9050 -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
     -H "Content-Type: application/json;charset=UTF-8" -H "login-id: $LID" -H "access-token: $TOKEN" \
@@ -101,20 +102,20 @@ if [ "$is_ready" = true ]; then
         
         ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
         if [[ -n "$ORD" ]]; then 
-            echo -e "${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-            echo -e "  ${G}✔ THÀNH CÔNG!${NC}"
-            echo -e "  ${W}Mã đơn hàng:${NC} ${C}$ORD${NC}"
-            echo -e "${G}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "\n    ${G}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}"
+            echo -e "    ${G}┃${NC}     ${W}GIAO DỊCH HOÀN TẤT THÀNH CÔNG${NC}     ${G}┃${NC}"
+            echo -e "    ${G}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
+            echo -e "    ${W}Mã Đơn:${NC} ${C}$ORD${NC}\n"
         else 
-            echo -e "\n${R}✘ LỖI THANH TOÁN:${NC} $PAY"
+            echo -e "\n    ${R}✘ Lỗi thanh toán:${NC} $PAY"
         fi
     else 
-        echo -e "\n${R}✘ LỖI HỆ THỐNG:${NC} Không lấy được thông tin giá."
+        echo -e "\n    ${R}✘ Lỗi hệ thống: Không phản hồi giá.${NC}"
     fi
 fi
 
 pkill -9 tor > /dev/null 2>&1
-echo -e "\n${GR}Gõ 'buy' để thực hiện đơn hàng mới.${NC}"
+echo -e "    ${GR}Gõ 'buy' để khởi tạo phiên mới.${NC}\n"
 EOF
 
 # --- 3. HOÀN TẤT ---
@@ -122,5 +123,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 
 clear
-echo -e "\033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG!\033[0m"
-echo -e "\033[1;37mGõ lệnh \033[1;36mbuy\033[0m \033[1;37mđể bắt đầu giao dịch.\033[0m"
+echo -e "\n    \033[1;32m✅ CẤU HÌNH GIAO DIỆN PRO THÀNH CÔNG!\033[0m"
+echo -e "    \033[1;37mSử dụng lệnh: \033[1;36mbuy\033[0m\n"
