@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
 # --- 1. SETUP HỆ THỐNG ---
-echo -e "\033[1;33m> Thiết lập lần đầu...\033[0m"
+echo -e "\033[1;33m> Đang tối ưu hệ thống...\033[0m"
 termux-wake-lock
 pkg install curl jq tor -y > /dev/null 2>&1
 
