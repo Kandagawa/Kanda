@@ -52,29 +52,29 @@ case $CH in
     *) echo -e "${R}Sai lựa chọn!${NC}"; exit 1;;
 esac
 
-# --- BƯỚC 3: KẾT NỐI TOR (FIX LỖI PATH LOG) ---
+# --- BƯỚC 3: KẾT NỐI TOR (BỎ TIMEOUT - LỌC NODE SỐNG MẠNH) ---
 clear
-echo -e "\n    ${P}●${NC} ${W}Đang bóc Node sống & Thiết lập Tunnel...${NC}"
+echo -e "\n    ${P}●${NC} ${W}Đang bóc Node chất lượng cao...${NC}"
 pkill -9 tor > /dev/null 2>&1
 rm -rf $HOME/.tor_data
 mkdir -p "$HOME/.tor_data" && chmod 700 "$HOME/.tor_data"
 
-LIVEL_NODES=$(curl -s --connect-timeout 5 "https://onionoo.torproject.org/summary?running=true" | jq -r '.relays[].f' | shuf -n 15 | tr '\n' ',' | sed 's/,$//')
+# Lọc Node: Đang chạy, Tốc độ cao, Ổn định (Fast, Stable)
+LIVEL_NODES=$(curl -s --connect-timeout 10 "https://onionoo.torproject.org/summary?running=true&fast=true&stable=true" | jq -r '.relays[].f' | shuf -n 25 | tr '\n' ',' | sed 's/,$//')
 
 TORRC="$HOME/.tor_data/torrc"
 echo -e "DataDirectory $HOME/.tor_data\nSocksPort 127.0.0.1:9050" > "$TORRC"
 [[ -n "$LIVEL_NODES" ]] && echo "EntryNodes $LIVEL_NODES" >> "$TORRC"
 
-# Thay đổi đường dẫn LOG sang thư mục HOME để chắc chắn ghi được file
 TOR_LOG="$HOME/.tor_data/tor.log"
 > "$TOR_LOG"
 tor -f "$TORRC" > "$TOR_LOG" 2>&1 &
 
 is_ready=false
-count=0
+# Vòng lặp vô tận cho đến khi xong, không Timeout
 while true; do
     if [ -f "$TOR_LOG" ] && grep -q "Bootstrapped 100%" "$TOR_LOG"; then
-        printf "\r    ${GR}Tiến trình: ${NC}${G}100%% (Sẵn sàng)${NC} "
+        printf "\r    ${GR}Tiến trình: ${NC}${G}100%% (Đã kết nối)${NC} "
         is_ready=true; break
     fi
     
@@ -84,12 +84,8 @@ while true; do
     fi
     
     if ! pgrep -x "tor" > /dev/null; then
-        echo -e "\n    ${R}✘ Tor đã dừng đột ngột.${NC}"; break
-    fi
-    
-    ((count++))
-    if [ $count -gt 80 ]; then
-        echo -e "\n    ${R}✘ Quá thời gian kết nối (Timeout).${NC}"; break
+        echo -e "\n    ${R}✘ Tor lỗi khởi động. Đang thử lại...${NC}"
+        tor -f "$TORRC" > "$TOR_LOG" 2>&1 &
     fi
     sleep 0.5
 done
@@ -109,7 +105,7 @@ if [ "$is_ready" = true ]; then
         ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
         [[ -n "$ORD" ]] && echo -e "\n    ${G}✔ THÀNH CÔNG!${NC} Mã: ${C}$ORD${NC}" || echo -e "\n    ${R}✘ Lỗi: $PAY${NC}"
     else 
-        echo -e "\n    ${R}✘ Lỗi: Server bận hoặc JSON sai.${NC}"
+        echo -e "\n    ${R}✘ Lỗi: Không lấy được giá (Server/JSON).${NC}"
     fi
 fi
 
@@ -121,5 +117,5 @@ EOF
 # --- 3. HOÀN TẤT ---
 chmod +x $PREFIX/bin/buy
 clear
-echo -e "\n    \033[1;32m✅ ĐÃ FIX LỖI GHI FILE LOG!\033[0m"
+echo -e "\n    \033[1;32m✅ HOÀN TẤT: Đã bỏ Timeout & Tối ưu Node sống!\033[0m"
 echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
