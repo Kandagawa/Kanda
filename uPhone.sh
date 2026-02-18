@@ -1,12 +1,18 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- KIỂM TRA & CÀI ĐẶT MÔI TRƯỜNG ---
-if ! command -v jq &> /dev/null || ! command -v tor &> /dev/null; then
-    echo -e "\033[1;33m📦 Đang cài đặt phụ kiện (jq, tor)... \033[0m"
-    pkg update -y && pkg install curl jq tor -y > /dev/null 2>&1
-fi
+# --- 1. CÀI ĐẶT HỆ THỐNG (ẨN LOG) ---
+clear
+echo -e "\033[1;33m📦 Đang tối ưu hệ thống và cài đặt phụ kiện... \033[0m"
 
-# --- CẤU HÌNH GIAO DIỆN ---
+# Cập nhật và cài đặt ẩn danh
+pkg update -y &> /dev/null
+pkg install curl jq tor coreutils -y &> /dev/null
+
+# --- 2. TẠO LỆNH BUY ---
+cat << 'EOF' > $PREFIX/bin/buy
+#!/data/data/com.termux/files/usr/bin/bash
+
+# Màu sắc
 G='\033[1;32m'; R='\033[1;31m'; Y='\033[1;33m'; C='\033[1;36m'; NC='\033[0m'
 PURPLE='\033[1;38;5;141m'; WHITE='\033[1;37m'; GREY='\033[1;30m'
 
@@ -21,12 +27,12 @@ render_bar() {
     printf "${NC}] ${WHITE}%d%%${NC}" "$percent"
 }
 
-# --- BẮT ĐẦU ---
 clear
 echo -e "${PURPLE}┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓${NC}"
 echo -e "${PURPLE}┃${NC}          ${W}UGPHONE AUTO BUYER PRO (GITHUB)${NC}           ${PURPLE}┃${NC}"
 echo -e "${PURPLE}┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛${NC}"
 
+# --- NHẬP DATA ---
 echo -e "\n${C}👉 Dán JSON vào đây rồi Enter:${NC}"
 read -r DATA
 LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
@@ -37,16 +43,13 @@ if [[ -z "$LID" || -z "$TOKEN" ]]; then
     exit 1
 fi
 
-echo -e "${G}✅ Đã nhận ID: $LID${NC}"
-
-# --- BƯỚC 1: NHẬN QUÀ ---
-echo -e "${Y}🔍 Đang tự nhận quà ngầm...${NC}"
+# --- NHẬN QUÀ NGẦM ---
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "Content-Type: application/json;charset=UTF-8" \
 -H "terminal: web" -H "lang: vi" \
--H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null
+-H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null &
 
-# --- BƯỚC 2: CHỌN VÙNG ---
+# --- CHỌN VÙNG ---
 echo -e "\n${PURPLE}◈${NC} ${WHITE}CHỌN KHU VỰC:${NC}"
 echo -e "  ${GREY}1.${NC} Nhật (JP)  ${GREY}2.${NC} Sing (SG)  ${GREY}3.${NC} Mỹ (US)  ${GREY}4.${NC} Đức (DE)"
 read -p "  ╰─> Nhập số: " CH
@@ -58,13 +61,13 @@ case $CH in
     *) echo "Sai lựa chọn!"; exit 1;;
 esac
 
-# --- BƯỚC 3: KẾT NỐI TOR ---
+# --- KẾT NỐI TOR ---
 pkill -9 tor > /dev/null 2>&1
-rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
+rm -rf $PREFIX/var/lib/tor/* &> /dev/null
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
 TORRC="$PREFIX/etc/tor/torrc_mua"
 
-echo -e "\n${C}🔍 Đang lấy Node sạch và kết nối Tor...${NC}"
+echo -e "\n${C}🔍 Đang lọc Node và thiết lập Tunnel...${NC}"
 NODES=$(curl -s "https://onionoo.torproject.org/details?search=country:$CC" | jq -r '.relays[] | select(.running==true and .advertised_bandwidth > 1048576) | .fingerprint' | shuf -n 20 | tr '\n' ',' | sed 's/,$//')
 echo -e "DataDirectory $PREFIX/var/lib/tor\nLog notice stdout\nSocksPort 9050" > "$TORRC"
 [[ -n "$NODES" ]] && echo -e "ExitNodes $NODES\nStrictNodes 1" >> "$TORRC" || echo -e "ExitNodes {$CC}\nStrictNodes 1" >> "$TORRC"
@@ -78,11 +81,10 @@ while read -r line; do
     fi
 done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
-# --- BƯỚC 4: GIAO DỊCH ---
+# --- GIAO DỊCH ---
 if [ "$is_ready" = true ]; then
-    echo -e "\n\n${G}🚀 Tor Sẵn sàng! Đang mua...${NC}"
+    echo -e "\n\n${G}🚀 Tor Sẵn sàng! Đang gửi lệnh mua...${NC}"
     
-    # Lấy Price ID
     RES=$(curl --socks5-hostname 127.0.0.1:9050 -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
     -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
     -H "login-id: $LID" -H "access-token: $TOKEN" \
@@ -90,22 +92,24 @@ if [ "$is_ready" = true ]; then
 
     AMT=$(echo "$RES" | grep -oP '(?<="amount_id":")[^"]*')
     if [ ! -z "$AMT" ]; then 
-        # Thanh toán
         PAY=$(curl --socks5-hostname 127.0.0.1:9050 -s -X POST "https://www.ugphone.com/api/apiv1/fee/payment" \
         -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
         -H "login-id: $LID" -H "access-token: $TOKEN" \
         -d "{\"amount_id\":\"$AMT\",\"pay_channel\":\"free\"}")
         
         ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
-        if [ ! -z "$ORD" ]; then 
-            echo -e "  ${G}🎉 THÀNH CÔNG! ORDER ID: ${C}$ORD${NC}"
-        else 
-            echo -e "${R}❌ LỖI THANH TOÁN: $PAY${NC}"
-        fi
+        [[ -n "$ORD" ] ] && echo -e "  ${G}🎉 THÀNH CÔNG! ORDER ID: ${C}$ORD${NC}" || echo -e "${R}❌ LỖI: $PAY${NC}"
     else 
         echo -e "${R}❌ LỖI LẤY GIÁ: $RES${NC}"
     fi
 fi
 
 pkill -9 tor > /dev/null 2>&1
-echo -e "\n${GREY}Kết thúc phiên giao dịch.${NC}"
+echo -e "\n${GREY}Gõ 'buy' để thực hiện đơn mới.${NC}"
+EOF
+
+# --- 3. HOÀN TẤT ---
+chmod +x $PREFIX/bin/buy
+clear
+echo -e "\n\033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG!\033[0m"
+echo -e "\033[1;37mNhập lệnh sau để bắt đầu mua:\033[0m \033[1;36mbuy\033[0m\n"
