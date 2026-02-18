@@ -13,8 +13,8 @@ W='\033[1;37m'; GR='\033[1;30m'; P='\033[1;38;5;141m'
 
 while true; do
     clear
-    echo -e "\n    ${P}[UGPHONE CỦA ${G}HANAMI]${NC}"
-    echo -e "    ${GR}*Lưu ý: Nên thay đổi IP khi thực hiện mua...${NC}\n"
+    echo -e "\n    ${P}[UGPHONE AUTO BUY TRIAL]${NC}"
+    echo -e "    ${R}*Lưu ý: Nên thay đổi IP khi thực hiện mua...${NC}\n"
     
     echo -ne "    ${C}❯${NC} ${W}Dán JSON:${NC} "
     read -r DATA
@@ -28,7 +28,7 @@ while true; do
 done
 
 clear
-echo -e "\n    ${P}[UGPHONE AUTO BUYER PRO]${NC}"
+echo -e "\n    ${P}[UGPHONE AUTO BUY TRIAL]${NC}"
 echo -e "    ${G}✅ ID: $LID ${NC}"
 
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
