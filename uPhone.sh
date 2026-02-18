@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# --- Cài đặt các gói phụ trợ nếu chưa có ---
-echo -e "\033[1;33m正在安装 phụ kiện (curl, jq, tor, python)... \033[0m"
-pkg install curl jq tor python -y > /dev/null 2>&1
+# --- 1. CÀI ĐẶT MÔI TRƯỜNG (Chạy 1 lần khi cài) ---
+echo -e "\033[1;33m正在安装 phụ kiện... \033[0m"
+pkg install curl jq tor -y > /dev/null 2>&1
 
-# --- Tạo lệnh buy trong hệ thống ---
+# --- 2. TẠO LỆNH CHẠY 'buy' ---
 cat << 'EOF' > $PREFIX/bin/buy
 #!/data/data/com.termux/files/usr/bin/bash
 
@@ -26,21 +26,20 @@ render_bar() {
 
 clear
 
-# --- BƯỚC 1: NHẬP LIỆU (Chống lỗi trôi phím) ---
+# --- BƯỚC 1: NHẬP LIỆU (Logic gốc của bạn + Chống trôi) ---
 while true; do
     read -t 0.1 -n 10000 discard
     echo -e "${C}👉 Dán JSON vào rồi Enter:${NC}"
     echo -ne "${C}◈${NC} "
     read -r DATA
-    
     LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
     TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
 
-    if [[ -n "$LID" && -n "$TOKEN" ]]; then
+    if [[ -n "$LID" ]]; then
         echo -e "${G}✅ Đã nhận ID: $LID${NC}"
         break
     else
-        echo -e "${R}❌ Bạn chưa dán hoặc JSON thiếu ID/Token! Thử lại...${NC}\n"
+        echo -e "${R}❌ Không tìm thấy ID! Vui lòng dán lại...${NC}\n"
     fi
 done
 
@@ -115,12 +114,13 @@ if [ "$is_ready" = true ]; then
 fi
 
 pkill -9 tor > /dev/null 2>&1
-echo -e "\n${GREY}Xong. Gõ 'buy' để chạy lại bất cứ lúc nào.${NC}"
+echo -e "\n${GREY}Xong. Gõ 'buy' để chạy lại.${NC}"
 EOF
 
-# --- Cấp quyền và tạo Alias ---
+# --- 3. HOÀN TẤT ---
 chmod +x $PREFIX/bin/buy
-grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
+echo "alias buy='buy'" >> ~/.bashrc
 source ~/.bashrc
-
-echo -e "\033[1;32m✅ Cài đặt hoàn tất! Gõ 'buy' để bắt đầu.\033[0m"
+clear
+echo -e "\033[1;32m✅ Cài đặt xong! Từ giờ chỉ cần gõ 'buy' là chạy.\033[0m"
+buy
