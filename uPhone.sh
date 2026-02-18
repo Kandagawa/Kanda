@@ -126,5 +126,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 
 clear
-echo -e "\n    \033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG (Lọc Node Ngẫu Nhiên)!\033[0m"
+echo -e "\n    \033[1;32m✅ HỆ THỐNG ĐÃ SẴN SÀNG!\033[0m"
 echo -e "    \033[1;37mGõ lệnh: \033[1;36mbuy\033[0m\n"
