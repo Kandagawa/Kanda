@@ -17,32 +17,33 @@ render_bar() {
 }
 
 clear
-# Nhập dữ liệu - Tăng cường khả năng nhận diện
+# Nhập dữ liệu
 echo -ne "${C}◈${NC} ${WHITE}Dán JSON:${NC} "
 read -r DATA
 
-# Bộ lọc mới: Tách mọi dấu ngoặc/phẩy để grep không bao giờ trượt
-LID=$(echo "$DATA" | sed 's/[{,}]/\n/g' | grep -m 1 '"login_id"' | cut -d'"' -f4)
-TOKEN=$(echo "$DATA" | sed 's/[{,}]/\n/g' | grep -m 1 '"access_token"' | cut -d'"' -f4)
+# Dùng Python để bóc tách ID và Token (Xử lý được mọi loại JSON)
+LID=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('login_id', d.get('UGPHONE-MQTT', {}).get('login_id', '')))" "$DATA" 2>/dev/null)
+TOKEN=$(python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('access_token', d.get('UGPHONE-MQTT', {}).get('access_token', '')))" "$DATA" 2>/dev/null)
 
-# Kiểm tra nếu lọc theo cách trên không được (do định dạng khác) thì dùng cách dự phòng
-[[ -z "$LID" ]] && LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
-[[ -z "$TOKEN" ]] && TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
+# Nếu Python không có, dùng bộ lọc dự phòng siêu mạnh
+if [[ -z "$LID" || -z "$TOKEN" ]]; then
+    LID=$(echo "$DATA" | grep -oE '"login_id":"[^"]+"' | cut -d'"' -f4 | head -n 1)
+    TOKEN=$(echo "$DATA" | grep -oE '"access_token":"[^"]+"' | cut -d'"' -f4 | head -n 1)
+fi
 
 if [[ -z "$LID" || -z "$TOKEN" ]]; then
-    echo -e "${R}❌ Không tìm thấy Token hoặc ID trong JSON này!${NC}"
+    echo -e "${R}❌ Vẫn không lọc được! Kiểm tra lại JSON đi bạn.${NC}"
     exit 1
 fi
 
-# Bước 1: Nhận quà (ngầm)
-echo -ne "${Y}…${NC} ${WHITE}Xác thực...${NC}"
-curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
--H "Content-Type: application/json;charset=UTF-8" \
--H "terminal: web" -H "lang: vi" -H "update-date: $TODAY" \
--H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null
-echo -e "\r${G}●${NC} ${WHITE}ID:${NC} ${G}${LID:0:10}...${NC} ${G}OK${NC}"
+echo -e "${G}●${NC} ${WHITE}Xác thực:${NC} ${G}${LID:0:10}... OK${NC}"
 
-# Bước 2: Chọn vùng nhanh
+# --- BƯỚC 1: NHẬN QUÀ ---
+curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
+-H "Content-Type: application/json" -H "terminal: web" \
+-H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null
+
+# --- BƯỚC 2: CHỌN VÙNG ---
 echo -e "\n${C}◈${NC} ${WHITE}VÙNG:${NC} ${Y}1${NC}.JP ${Y}2${NC}.SG ${Y}3${NC}.US ${Y}4${NC}.DE ${Y}5${NC}.HK"
 echo -ne "${C}◈${NC} ${WHITE}Chọn:${NC} "
 read -r CH
@@ -55,13 +56,13 @@ case $CH in
     *) exit 1;;
 esac
 
-# Bước 3: Kết nối ngầm (Ẩn Tor)
+# --- BƯỚC 3: KẾT NỐI NGẦM ---
 pkill -9 tor > /dev/null 2>&1
 rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
 TORRC="$PREFIX/etc/tor/torrc_mua"
 
-echo -e "\n${C}🔍${NC} ${WHITE}Đang thiết lập đường truyền...${NC}"
+echo -e "\n${C}🔍${NC} ${WHITE}Thiết lập đường truyền...${NC}"
 NODES=$(curl -s "https://onionoo.torproject.org/details?search=country:$CC" | jq -r '.relays[] | select(.running==true and .advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
 echo -e "DataDirectory $PREFIX/var/lib/tor\nLog notice stdout\nSocksPort 9050" > "$TORRC"
 [[ -n "$NODES" ]] && echo -e "ExitNodes $NODES\nStrictNodes 1" >> "$TORRC" || echo -e "ExitNodes {$CC}\nStrictNodes 1" >> "$TORRC"
@@ -75,7 +76,7 @@ while read -r line; do
     fi
 done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
-# Bước 4: Mua hàng
+# --- BƯỚC 4: MUA HÀNG ---
 if [ "$is_ready" = true ]; then
     echo -e "\n\n${G}🚀${NC} ${WHITE}Đang gửi lệnh mua...${NC}"
     
