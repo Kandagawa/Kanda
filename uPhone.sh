@@ -2,7 +2,7 @@
 
 # --- 1. KIỂM TRA MÔI TRƯỜNG ---
 if ! command -v tor &> /dev/null; then
-    echo -e "\033[1;33m📦 Đang thiết lập gói hỗ trợ... \033[0m"
+    echo -e "\033[1;33m📦 Đang thiết lập hệ thống... \033[0m"
     pkg install curl jq tor -y > /dev/null 2>&1
 fi
 
@@ -24,19 +24,24 @@ render_bar() {
 
 clear
 
-# --- BƯỚC 1: NHẬP LIỆU ---
+# --- BƯỚC 1: NHẬP LIỆU (CHẤP NHẬN ĐỊNH DẠNG JSON MỚI) ---
+while read -t 0.1 -n 10000 discard; do :; done
+
 while true; do
-    read -t 0.1 -n 10000 discard
-    echo -ne "${C}❯${NC} ${W}Dán JSON:${NC} "
+    echo -ne "${C}❯${NC} ${W}Dán dữ liệu JSON mới:${NC} "
     read -r DATA
+    
+    if [[ -z "$DATA" ]]; then continue; fi
+
+    # Lọc login_id và access_token theo định dạng 100% khớp với mẫu bạn gửi
     LID=$(echo "$DATA" | grep -oP '(?<="login_id":")[^"]*' | head -n 1)
     TOKEN=$(echo "$DATA" | grep -oP '(?<="access_token":")[^"]*' | head -n 1)
 
-    if [[ -n "$LID" ]]; then
-        echo -e "  ${GR}ID: $LID${NC}"
+    if [[ -n "$LID" && -n "$TOKEN" ]]; then
+        echo -e "  ${G}✔${NC} ${GR}Xác thực thành công: $LID${NC}"
         break
     else
-        echo -e "  ${R}⚠ JSON lỗi!${NC}"
+        echo -e "  ${R}✘ Dữ liệu không khớp! Vui lòng dán lại toàn bộ JSON.${NC}"
     fi
 done
 
@@ -46,7 +51,7 @@ curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null &
 
 # --- BƯỚC 2: CHỌN VÙNG ---
-echo -e "\n${C}❯${NC} ${W}Vùng:${NC} ${GR}(1-JP, 2-SG, 3-US, 4-DE, 5-HK)${NC}"
+echo -e "\n${C}❯${NC} ${W}Khu vực:${NC} ${GR}(1-JP, 2-SG, 3-US, 4-DE, 5-HK)${NC}"
 echo -ne "  ${GR}Chọn số: ${NC}"
 read -r CH
 case $CH in 
@@ -64,7 +69,7 @@ rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
 mkdir -p "$PREFIX/var/lib/tor" && chmod 700 "$PREFIX/var/lib/tor"
 TORRC="$PREFIX/etc/tor/torrc_mua"
 
-echo -e "\n${C}❯${NC} ${W}Đang kết nối Proxy...${NC}"
+echo -e "\n${C}❯${NC} ${W}Đang kết nối đường truyền ($CC)...${NC}"
 echo -e "DataDirectory $PREFIX/var/lib/tor\nSocksPort 9050\nExitNodes {$CC}\nStrictNodes 1" > "$TORRC"
 
 is_ready=false
@@ -92,13 +97,13 @@ if [ "$is_ready" = true ]; then
         
         ORD=$(echo "$PAY" | grep -oP '(?<="order_id":")[^"]*')
         if [[ -n "$ORD" ]]; then 
-            echo -e "\n${G}✔${NC} ${W}Thành công!${NC}"
-            echo -e "  ${GR}Order ID: $ORD${NC}"
+            echo -e "\n${G}✔ Mua thành công!${NC}"
+            echo -e "  ${W}Mã đơn: $ORD${NC}"
         else 
-            echo -e "\n${R}✘ Lỗi: $PAY${NC}"
+            echo -e "\n${R}✘ Thất bại: $PAY${NC}"
         fi
     else 
-        echo -e "\n${R}✘ Lỗi: Không lấy được giá.${NC}"
+        echo -e "\n${R}✘ Lỗi lấy giá (Có thể hết lượt hoặc sai vùng).${NC}"
     fi
 fi
 
@@ -110,5 +115,5 @@ chmod +x $PREFIX/bin/buy
 grep -q "alias buy='buy'" ~/.bashrc || echo "alias buy='buy'" >> ~/.bashrc
 source ~/.bashrc
 
-echo -e "\033[32m✔ Đã sẵn sàng. Gõ 'buy' để chạy.\033[0m"
+echo -e "\033[32m✔ Đã cập nhật định dạng JSON 2026. Gõ 'buy' để chạy.\033[0m"
 buy
