@@ -32,7 +32,7 @@ echo -e "\n    ${P}[UGPHONE BUY TRIAL]${NC}"
 echo -e "    ${G}✅ ID: $LID ${NC}"
 
 # --- TÍCH HỢP SOI STOCK HÀNG NGANG ---
-echo -ne "    ${Y}● Đang soi kho hàng: ${NC}"
+echo -ne "    ${Y}● Đang xem stock: ${NC}"
 NAMES="JP SG US DE HK"
 IDS="07fb1cda-f347-7e09-f50d-a8d894f2ffea 3731f6bf-b812-e983-872b-152cdab81276 b0b20248-b103-b041-3480-e90675c57a4f 9f1980ab-6d4b-5192-a19f-c6d4bc5d3a47 82542031-4021-397a-9774-4b5311096a66"
 set -- $IDS
