@@ -30,8 +30,26 @@ done
 clear
 echo -e "\n    ${P}[UGPHONE BUY TRIAL]${NC}"
 echo -e "    ${G}✅ ID: $LID ${NC}"
-sleep 1
 
+# --- TÍCH HỢP SOI STOCK HÀNG NGANG ---
+echo -ne "    ${Y}● Đang soi kho hàng: ${NC}"
+NAMES="JP SG US DE HK"
+IDS="07fb1cda-f347-7e09-f50d-a8d894f2ffea 3731f6bf-b812-e983-872b-152cdab81276 b0b20248-b103-b041-3480-e90675c57a4f 9f1980ab-6d4b-5192-a19f-c6d4bc5d3a47 82542031-4021-397a-9774-4b5311096a66"
+set -- $IDS
+
+for NAME in $NAMES; do
+    N_ID=$1; shift
+    RES_ST=$(curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
+    -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
+    -H "login-id: $LID" -H "access-token: $TOKEN" \
+    -d "{\"order_type\":\"newpay\",\"period_time\":4,\"unit\":\"hour\",\"resource_type\":\"cloudphone\",\"resource_param\":{\"pay_mode\":\"subscription\",\"config_id\":\"8dd93fc7-27bc-35bf-b3e4-3f2000ceb746\",\"network_id\":\"$N_ID\",\"count\":1,\"use_points\":3,\"points\":250}}")
+    
+    AMT_ST=$(echo "$RES_ST" | jq -r '.data.amount_id // empty')
+    if [ -n "$AMT_ST" ]; then echo -ne "${G}●$NAME ${NC}"; else echo -ne "${R}●$NAME ${NC}"; fi
+done
+echo -e "\n"
+
+# --- NHẬN KIM CƯƠNG ---
 echo -e "    ${Y}● Kiểm tra kim cương...${NC}"
 curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "Content-Type: application/json;charset=UTF-8" \
@@ -39,11 +57,9 @@ curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/newPackage" \
 -H "login-id: $LID" -H "access-token: $TOKEN" -d "{}" > /dev/null 2>&1
 sleep 1
 
-echo -e "\n    ${W}Chọn máy chủ:${NC}"
-echo -e "      ${C}1.${NC} Nhật (JP)"
-echo -e "      ${C}2.${NC} Sing (SG)"
-echo -e "      ${C}3.${NC} Mỹ (US)"
-echo -e "      ${C}4.${NC} Đức (DE)"
+echo -e "    ${W}Chọn máy chủ:${NC}"
+echo -e "      ${C}1.${NC} Nhật (JP)     ${C}2.${NC} Sing (SG)"
+echo -e "      ${C}3.${NC} Mỹ (US)       ${C}4.${NC} Đức (DE)"
 echo -e "      ${C}5.${NC} Hong Kong (HK)"
 echo -ne "\n    ${C}❯${NC} ${W}Nhập số:${NC} "
 read -r CH
@@ -58,7 +74,7 @@ case $CH in
 esac
 
 echo -e "\n    ${Y}● Đang gửi lệnh mua...${NC}"
-sleep 1
+sleep 0.5
 
 RES=$(curl -s -X POST "https://www.ugphone.com/api/apiv1/fee/queryResourcePrice" \
 -H "Content-Type: application/json;charset=UTF-8" -H "terminal: web" -H "lang: vi" \
@@ -92,5 +108,5 @@ EOF
 
 chmod +x $PREFIX/bin/buy
 clear
-echo -e "\n    \033[1;32m✅ HOÀN TẤT \033[0m"
+echo -e "\n    \033[1;32m✅ HOÀN TẤT\033[0m"
 echo -e "    \033[1;37mGõ lệnh:\033[0m \033[1;36mbuy\033[0m\n"
