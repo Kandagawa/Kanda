@@ -2,20 +2,21 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>UGTrial System</title>
     <style>
         body, html {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
+            /* Sử dụng dvh để tự động thích ứng với mọi trình duyệt di động */
+            width: 100vw;
+            height: 100dvh; 
             overflow: hidden; 
-            background-color: #000;
+            background-color: #0d0d15; /* Nên đặt màu trùng với màu nền web gốc của bạn */
         }
 
         iframe {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
