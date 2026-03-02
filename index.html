@@ -1,39 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>UGPhone Trial</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UGTrial System</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        html, body { 
+        body, html {
+            margin: 0;
+            padding: 0;
             width: 100%;
-            height: 100%; 
-            overflow: hidden;
+            height: 100%;
+            overflow: hidden; 
+            background-color: #000;
         }
-        
-        .container {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-        }
-        
-        iframe { 
-            width: 100vw;
-            height: 100vh;
+
+        iframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             border: none;
-            /* Scale để vừa khung, giả sử trang Kimi thiết kế cho 1200px */
-            transform: scale(min(1, calc(100vw / 1200)));
-            transform-origin: top left;
+            display: block;
+            -webkit-overflow-scrolling: touch;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <iframe 
-            src="https://trialug.space.z.ai"
-            allowfullscreen
-        ></iframe>
-    </div>
+
+    <iframe 
+        src="https://quanlyug.space.z.ai" 
+        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" 
+        allowfullscreen="true"
+        scrolling="yes">
+    </iframe>
+
 </body>
 </html>
