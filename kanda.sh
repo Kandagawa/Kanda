@@ -79,11 +79,18 @@ select_rotate_time() {
 install_services() {
     cleanup
     echo -e "\n  ${GREY}Đang kiểm tra hệ thống...${NC}"
-    # Giữ nguyên logic kiểm tra: Thiếu thì cài, có rồi thì render_bar 100% rồi lướt qua
-    if ! command -v tor &> /dev/null || ! command -v privoxy &> /dev/null || ! command -v jq &> /dev/null; then
+    # Kiểm tra: Nếu thiếu một trong các công cụ thì mới chạy cài đặt
+    if ! command -v tor &>/dev/null || ! command -v privoxy &>/dev/null || ! command -v jq &>/dev/null; then
         render_bar "Tiến trình 1" 20
-        pkg update -y > /dev/null 2>&1
-        pkg install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
+        
+        # Cập nhật và cài đặt với tùy chọn All chọn Yes và giữ cấu hình cũ (--force-confold)
+        # Ẩn hoàn toàn log rác bằng > /dev/null 2>&1
+        pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+        pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+        
+        # LỆNH QUAN TRỌNG: Làm mới bộ nhớ đệm của Bash để nó thấy jq ngay lập tức
+        hash -r 
+        
         render_bar "Tiến trình 1" 100
     else
         render_bar "Tiến trình 1" 100
