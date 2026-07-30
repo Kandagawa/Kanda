@@ -17,19 +17,22 @@ init_colors() {
     YELLOW='\033[1;33m'; RED='\033[1;31m'; WHITE='\033[1;37m'
     GREY='\033[1;30m'; BLUE='\033[1;34m'; NC='\033[0m'
     ORANGE='\033[1;38;5;209m'
+    # Thêm màu nền để tạo khối
+    BG_GREY='\033[1;48;5;236m'
 }
 
 render_bar() {
     local label=$1
     local percent=$2
-    local w=25
+    local w=30  # Tăng chiều rộng thanh tiến trình
     local filled=$((percent*w/100))
     local empty=$((w-filled))
+    
     printf "\r\033[K  ${GREY}${label}: ${NC}["
     printf "${CYAN}"
-    for ((j=0; j<filled; j++)); do printf "━"; done
+    for ((j=0; j<filled; j++)); do printf "█"; done
     printf "${GREY}"
-    for ((j=0; j<empty; j++)); do printf "━"; done
+    for ((j=0; j<empty; j++)); do printf "░"; done
     printf "${NC}] ${WHITE}%d%%${NC}" "$percent"
 }
 
@@ -43,13 +46,13 @@ cleanup() {
 }
 
 select_country() {
-    echo -e "\n  ${PURPLE}◈${NC} ${WHITE}VÙNG QUỐC GIA${NC}"
+    echo -e "\n  ${CYAN}┌─ ${WHITE}🌐 VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${ORANGE}Mã vùng (us, jp, vn, sg... hoặc all):${NC} ${YELLOW}"
+        printf "  ${CYAN}└─▸${NC} ${GREY}Mã vùng (us, jp, vn, sg... | all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         if [[ "$clean_input" == "all" ]]; then
-            display_country="TOÀN CẦU"
+            display_country="TOÀN CẦU 🌍"
             country_code=""
             break
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
@@ -57,15 +60,15 @@ select_country() {
             display_country="${country_code^^}"
             break
         else
-            echo -e "      ${RED}✗ Mã không hợp lệ!${NC}"
+            echo -e "      ${RED}✗ Mã không hợp lệ! Vui lòng nhập lại.${NC}"
         fi
     done
 }
 
 select_rotate_time() {
-    echo -e "\n  ${PURPLE}◈${NC} ${WHITE}THỜI GIAN XOAY IP${NC}"
+    echo -e "\n  ${BLUE}┌─ ${WHITE}⏱ THỜI GIAN XOAY IP${NC}"
     while true; do
-        printf "  ${GREY}╰─>${NC} ${ORANGE}Số phút (1 đến 9):${NC} ${YELLOW}"
+        printf "  ${BLUE}└─▸${NC} ${GREY}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
@@ -78,19 +81,12 @@ select_rotate_time() {
 
 install_services() {
     cleanup
-    echo -e "\n  ${GREY}Đang kiểm tra hệ thống...${NC}"
-    # Kiểm tra: Nếu thiếu một trong các công cụ thì mới chạy cài đặt
+    echo -e "\n  ${GREY}⚙️  Đang kiểm tra hệ thống...${NC}"
     if ! command -v tor &>/dev/null || ! command -v privoxy &>/dev/null || ! command -v jq &>/dev/null; then
         render_bar "Tiến trình 1" 20
-        
-        # Cập nhật và cài đặt với tùy chọn All chọn Yes và giữ cấu hình cũ (--force-confold)
-        # Ẩn hoàn toàn log rác bằng > /dev/null 2>&1
         pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
         pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
-        
-        # LỆNH QUAN TRỌNG: Làm mới bộ nhớ đệm của Bash để nó thấy jq ngay lập tức
         hash -r 
-        
         render_bar "Tiến trình 1" 100
     else
         render_bar "Tiến trình 1" 100
@@ -142,13 +138,18 @@ run_tor() {
 
     if [ "$is_ready" = true ]; then
         clear
-        echo -e "\n  ${GREEN}HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
-        echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "  ${WHITE}  ĐỊA CHỈ    :${NC} ${YELLOW}127.0.0.1:8118${NC}"
-        echo -e "  ${WHITE}  QUỐC GIA   :${NC} ${GREEN}${display_country}${NC}"
-        echo -e "  ${WHITE}  CHU KỲ     :${NC} ${BLUE}${minute_input} phút${NC}"
-        echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+        # Khung thông báo thành công đẹp mắt
+        echo -e "\n  ${GREEN}╭─────────────────────────────────────╮${NC}"
+        echo -e "  ${GREEN}│${NC}     ${WHITE}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}         ${GREEN}│${NC}"
+        echo -e "  ${GREEN}╰─────────────────────────────────────╯${NC}"
+        
+        echo -e "  ${GREY}─────────────────────────────────────${NC}"
+        echo -e "  ${WHITE} 🔑 Địa chỉ  :${NC} ${YELLOW}127.0.0.1:8118${NC}"
+        echo -e "  ${WHITE} 🌍 Quốc gia :${NC} ${GREEN}${display_country}${NC}"
+        echo -e "  ${WHITE} ⏱ Chu kỳ    :${NC} ${BLUE}${minute_input} phút (${sec}s)${NC}"
+        echo -e "  ${GREY}─────────────────────────────────────${NC}"
+        
+        echo -e "\n  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
         echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
         auto_rotate "$sec" > /dev/null 2>&1 &
     fi
@@ -166,11 +167,14 @@ main() {
     init_alias
     init_colors
     clear
-    echo -e "  ${RED}Đảm bảo mạng ổn định${NC}"
-    echo -e "  ${RED}[*] Kiểm tra hệ thống...${NC}"
     
-    # Bước cực kỳ quan trọng để jq không lỗi ở dưới:
-    # Gọi install_services một lần ở đây để đảm bảo jq được cài TRƯỚC khi dùng lệnh quét IP
+    # Màn hình chào mừng / khởi tạo
+    echo -e "\n  ${PURPLE}╭─────────────────────────────────────╮${NC}"
+    echo -e "  ${PURPLE}│${NC}      ${WHITE}⚙️  KANDA PROXY SYSTEM${NC}       ${PURPLE}│${NC}"
+    echo -e "  ${PURPLE}╰─────────────────────────────────────╯${NC}"
+    echo -e "  ${YELLOW}! Đảm bảo kết nối mạng ổn định${NC}"
+    echo -e "  ${GREY}[*] Đang kiểm tra hệ thống...${NC}"
+    
     install_services 
 
     while true; do
@@ -178,19 +182,25 @@ main() {
         trap 'stop_flag=true' SIGINT
         cleanup
         clear
-        echo -e "  ${PURPLE}▬▬▬${NC} ${WHITE}CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}▬▬▬${NC}"
         
-        # Bây giờ jq đã chắc chắn có mặt, lệnh này sẽ chạy ngon lành
-        printf "  ${PURPLE}◈${NC} ${GREEN}Tổng IP:${NC} "
+        # Khung cấu hình chính
+        echo -e "  ${PURPLE}╭─────────────────────────────────────╮${NC}"
+        echo -e "  ${PURPLE}│${NC}     ${WHITE}🛠  CẤU HÌNH HỆ THỐNG${NC}        ${PURPLE}│${NC}"
+        echo -e "  ${PURPLE}╰─────────────────────────────────────╯${NC}"
+        
+        printf "\n  ${PURPLE}◈${NC} ${GREEN}Tổng số Node Tor đang hoạt động:${NC} "
         total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
-        echo -e "${PURPLE}$total_nodes${NC}"
+        echo -e "${PURPLE}${total_nodes}${NC} ${GREY}nodes${NC}"
         
         select_country
         select_rotate_time
+        
+        echo -e "\n  ${GREY}Đang áp dụng cấu hình và khởi động Tor...${NC}"
         install_services
         config_privoxy
         config_tor
         run_tor
+        
         while [[ "$stop_flag" == "false" ]]; do 
             sleep 0.5
         done
