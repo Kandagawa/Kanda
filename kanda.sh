@@ -15,36 +15,23 @@ init_alias() {
 init_colors() {
     PURPLE='\033[1;38;5;141m'; CYAN='\033[1;36m'; GREEN='\033[1;32m'
     YELLOW='\033[1;33m'; RED='\033[1;31m'; WHITE='\033[1;37m'
-    GREY='\033[1;38;5;240m'; BLUE='\033[1;34m'; NC='\033[0m'
-    ORANGE='\033[1;38;5;209m'; PINK='\033[1;38;5;198m'
-}
-
-spinner() {
-    local pid=$1
-    local msg=$2
-    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local i=0
-    while kill -0 $pid 2>/dev/null; do
-        printf "\r\033[K      ${ORANGE}${spin:$i:1}${NC} ${GREY}${msg}...${NC}"
-        i=$(( (i+1) % 10 ))
-        sleep 0.08
-    done
-    printf "\r\033[K"
+    GREY='\033[1;30m'; BLUE='\033[1;34m'; NC='\033[0m'
+    ORANGE='\033[1;38;5;209m'
 }
 
 render_bar() {
     local label=$1
     local percent=$2
-    local w=25
+    local w=30
     local filled=$((percent*w/100))
     local empty=$((w-filled))
     
-    printf "\r\033[K  ${GREY}${label} ${NC}"
+    printf "\r\033[K  ${GREY}${label}: ${NC}["
     printf "${CYAN}"
-    for ((j=0; j<filled; j++)); do printf "▰"; done
+    for ((j=0; j<filled; j++)); do printf "█"; done
     printf "${GREY}"
-    for ((j=0; j<empty; j++)); do printf "▱"; done
-    printf " ${WHITE}%d%%${NC}" "$percent"
+    for ((j=0; j<empty; j++)); do printf "░"; done
+    printf "${NC}] ${WHITE}%d%%${NC}" "$percent"
 }
 
 cleanup() {
@@ -66,126 +53,80 @@ get_ip_info() {
         echo "Lỗi kết nối|Không xác định|0"
         return
     fi
-    
     local status=$(echo "$json" | jq -r '.status' 2>/dev/null)
     if [ "$status" != "success" ]; then
         echo "Lỗi kết nối|Không xác định|0"
         return
     fi
-    
     ip=$(echo "$json" | jq -r '.query')
     country=$(echo "$json" | jq -r '.country')
     code=$(echo "$json" | jq -r '.countryCode')
     latency=$(awk -v s="$start_time" -v e="$end_time" 'BEGIN {t = (e - s) * 1000; printf "%.0f", t}')
-    
     echo "${ip}|${country} (${code})|${latency}"
 }
 
-display_status() {
-    local ip=$1
-    local loc=$2
-    local ping=$3
-    local countdown=$4
-    
-    local mins=$((countdown / 60))
-    local secs=$((countdown % 60))
-    
-    local ping_color=$GREEN
-    if [ $ping -gt 500 ]; then 
-        ping_color=$RED
-    elif [ $ping -gt 200 ]; then 
-        ping_color=$YELLOW
-    fi
-    
-    clear
-    echo -e "  ${GREEN}╭─── ${WHITE}✅ HỆ THỐNG ĐANG HOẠT ĐỘNG${NC}"
-    echo -e "  ${GREEN}│"
-    echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Cổng Proxy:${NC} ${YELLOW}127.0.0.1:8118${NC}"
-    echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Vùng chọn  :${NC} ${CYAN}${display_country}${NC}"
-    echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Chu kỳ XOAY:${NC} ${BLUE}${minute_input} phút${NC}"
-    echo -e "  ${GREEN}╰──────────────────────────────────────────${NC}"
-    
-    echo -e "  ${PURPLE}╭─ ${WHITE}📡 THÔNG TIN KẾT NỐI HIỆN TẠI${NC}"
-    echo -e "  ${PURPLE}│${NC}  ${WHITE}Địa chỉ IP :${NC} ${YELLOW}${ip}${NC}"
-    echo -e "  ${PURPLE}│${NC}  ${WHITE}Vị trí     :${NC} ${CYAN}${loc}${NC}"
-    echo -e "  ${PURPLE}│${NC}  ${WHITE}Tốc độ     :${NC} ${ping_color}${ping} ms${NC}"
-    echo -e "  ${PURPLE}╰──────────────────────────────────────────${NC}"
-    
-    echo -e "  ${ORANGE}⏳ Đếm ngược xoay IP:${NC} ${WHITE}%02d:%02d${NC}" "$mins" "$secs"
-    
-    echo -e "\n  ${GREY}╭─ HƯỚNG DẪN${NC}"
-    echo -e "  ${GREY}├─▸${NC} ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
-    echo -e "  ${GREY}└─▸${NC} ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
-}
-
 select_country() {
-    echo -e "  ${CYAN}╭─ ${WHITE}🌐 VÙNG QUỐC GIA${NC}"
+    echo -e "\n  ${CYAN}┌─ ${WHITE}🌐 VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${CYAN}├─▸${NC} ${GREY}Mã vùng (us, jp, vn, sg... | all):${NC} ${YELLOW}"
-        read input < /dev/tty
+        printf "  ${CYAN}└─▸${NC} ${GREY}Mã vùng (us, jp, vn, sg... | all):${NC} ${YELLOW}"
+        read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         
-        if [ "$clean_input" == "all" ]; then
+        if [[ "$clean_input" == "all" ]]; then
             display_country="TOÀN CẦU 🌍"
             country_code=""
-            echo -e "  ${CYAN}╰─▸${NC} ${GREEN}✓ Đã chọn toàn cầu.${NC}"
+            echo -e "      ${GREEN}✓ Đã chọn toàn cầu.${NC}"
             break
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
             
-            ( curl -s "https://onionoo.torproject.org/summary?search=country:$country_code&running=true" | jq '.relays | length' > /tmp/kanda_nodes.tmp 2>/dev/null ) &
-            local pid=$!
-            spinner $pid "Đang kiểm tra node cho ${country_code^^}"
-            wait $pid
+            printf "      ${GREY}⏳ Đang kiểm tra node cho ${country_code^^}...${NC}"
+            country_nodes=$(curl -s "https://onionoo.torproject.org/summary?search=country:$country_code&running=true" | jq '.relays | length // 0' 2>/dev/null)
             
-            country_nodes=$(cat /tmp/kanda_nodes.tmp 2>/dev/null)
-            rm -f /tmp/kanda_nodes.tmp
+            printf "\r\033[K"
             
-            if [ -z "$country_nodes" ] || [ "$country_nodes" == "null" ]; then
+            if [[ -z "$country_nodes" || "$country_nodes" == "null" ]]; then
                 country_nodes=0
             fi
 
-            if [ "$country_nodes" -lt 3 ]; then
-                echo -e "  ${CYAN}├─▸${NC} ${RED}✗ Node quá ít (${country_nodes} node). Vui lòng chọn quốc gia khác!${NC}"
+            if [[ "$country_nodes" -lt 3 ]]; then
+                echo -e "      ${RED}✗ Quốc gia ${country_code^^} chỉ có ${country_nodes} node (Quá ít). Vui lòng chọn quốc gia khác!${NC}"
             else
                 display_country="${country_code^^}"
-                echo -e "  ${CYAN}╰─▸${NC} ${GREEN}✓ Tìm thấy ${YELLOW}${country_nodes}${GREEN} node đang hoạt động.${NC}"
+                echo -e "      ${GREEN}✓ Quốc gia ${country_code^^} có ${YELLOW}${country_nodes}${GREEN} node đang hoạt động.${NC}"
                 break
             fi
         else
-            echo -e "  ${CYAN}├─▸${NC} ${RED}✗ Mã không hợp lệ! Vui lòng nhập lại.${NC}"
+            echo -e "      ${RED}✗ Mã không hợp lệ! Vui lòng nhập lại.${NC}"
         fi
     done
 }
 
 select_rotate_time() {
-    echo -e "\n  ${BLUE}╭─ ${WHITE}⏱ THỜI GIAN XOAY IP${NC}"
+    echo -e "\n  ${BLUE}┌─ ${WHITE}⏱ THỜI GIAN XOAY IP${NC}"
     while true; do
-        printf "  ${BLUE}├─▸${NC} ${GREY}Số phút (1 đến 9):${NC} ${YELLOW}"
-        read minute_input < /dev/tty
+        printf "  ${BLUE}└─▸${NC} ${GREY}Số phút (1 đến 9):${NC} ${YELLOW}"
+        read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
-            echo -e "  ${BLUE}╰─▸${NC} ${GREEN}✓ Cấu hình xoay IP mỗi ${YELLOW}${minute_input}${GREEN} phút.${NC}"
             break
         else
-            echo -e "  ${BLUE}├─▸${NC} ${RED}✗ Chỉ nhập số từ 1 đến 9!${NC}"
+            echo -e "      ${RED}✗ Chỉ nhập số từ 1 đến 9!${NC}"
         fi
     done
 }
 
 install_services() {
     cleanup
-    if ! command -v tor > /dev/null 2>&1 || ! command -v privoxy > /dev/null 2>&1 || ! command -v jq > /dev/null 2>&1; then
-        render_bar "⚙ Cài đặt   " 20
-        ( pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1 && \
-          pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1 ) &
-        local pid=$!
-        spinner $pid "Đang cài đặt gói dịch vụ"
-        wait $pid
+    echo -e "\n  ${GREY}⚙️  Đang kiểm tra hệ thống...${NC}"
+    if ! command -v tor &>/dev/null || ! command -v privoxy &>/dev/null || ! command -v jq &>/dev/null; then
+        render_bar "Tiến trình 1" 20
+        pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+        pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
         hash -r 
-        render_bar "⚙ Cài đặt   " 100
+        render_bar "Tiến trình 1" 100
     else
-        render_bar "⚙ Hệ thống  " 100
+        render_bar "Tiến trình 1" 100
     fi
     echo -e "" 
 }
@@ -205,9 +146,9 @@ config_tor() {
     mkdir -p $PREFIX/etc/tor
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
-    if [ -n "$country_code" ]; then
+    if [[ -n "$country_code" ]]; then
         strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.running==true and .advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
-        if [ -n "$strong_nodes" ]; then
+        if [[ -n "$strong_nodes" ]]; then
             echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
         else
             echo -e "ExitNodes {$country_code}\nStrictNodes 1" >> "$TORRC"
@@ -218,27 +159,43 @@ config_tor() {
 }
 
 run_tor() {
-    render_bar "🛡 Kết nối   " 0
-    local is_ready=false
+    pkill -9 tor > /dev/null 2>&1
+    rm -f /tmp/kanda_tor_log.tmp
+    # Chạy tor ngầm, xuất log ra file tạm để đọc tiến trình
+    stdbuf -oL tor -f "$TORRC" > /tmp/kanda_tor_log.tmp 2>&1 &
+    local tor_pid=$!
     
-    stdbuf -oL tor -f "$TORRC" 2>/dev/null | while read -r line; do
-        if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            if [ -n "$percent" ]; then
-                render_bar "🛡 Kết nối   " "$percent"
-                if [ "$percent" -eq 100 ]; then
-                    echo "READY" > /tmp/kanda_tor_status.tmp
-                    break
-                fi
-            fi
+    render_bar "Tiến trình 2" 0
+    local is_ready=false
+    local timeout=60
+    local t=0
+    
+    while [ $t -lt $timeout ]; do
+        if [[ "$stop_flag" == "true" ]]; then
+            kill -9 $tor_pid > /dev/null 2>&1
+            return 1
         fi
+        
+        # Đọc phần trăm kết nối từ file log
+        if grep -q "Bootstrapped 100%" /tmp/kanda_tor_log.tmp 2>/dev/null; then
+            render_bar "Tiến trình 2" 100
+            is_ready=true
+            break
+        fi
+        
+        local percent=$(grep -oP "Bootstrapped \K\d+" /tmp/kanda_tor_log.tmp 2>/dev/null | tail -1)
+        if [ -n "$percent" ]; then
+            render_bar "Tiến trình 2" "$percent"
+        fi
+        
+        sleep 0.5
+        t=$((t + 1))
     done
     
-    if [ -f /tmp/kanda_tor_status.tmp ]; then
-        rm -f /tmp/kanda_tor_status.tmp
-        sleep 2
+    if [ "$is_ready" = true ]; then
         return 0
     else
+        kill -9 $tor_pid > /dev/null 2>&1
         return 1
     fi
 }
@@ -248,17 +205,11 @@ main() {
     init_colors
     clear
     
-    echo -e "\n  ${PURPLE}╔══════════════════════════════════════════╗${NC}"
-    echo -e "  ${PURPLE}║${NC}  ${CYAN}░K░A░N░D░A░ ${WHITE}P R O X Y${NC}  ${PURPLE}║${NC}"
-    echo -e "  ${PURPLE}╚══════════════════════════════════════════╝${NC}"
+    echo -e "\n  ${PURPLE}╭─────────────────────────────────────╮${NC}"
+    echo -e "  ${PURPLE}│${NC}      ${WHITE}⚙️  KANDA PROXY SYSTEM${NC}       ${PURPLE}│${NC}"
+    echo -e "  ${PURPLE}╰─────────────────────────────────────╯${NC}"
     echo -e "  ${YELLOW}! Đảm bảo kết nối mạng ổn định${NC}"
-    
-    ( curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length' > /tmp/kanda_total.tmp 2>/dev/null ) &
-    local pid=$!
-    spinner $pid "Đang đồng bộ hệ thống"
-    wait $pid
-    total_nodes=$(cat /tmp/kanda_total.tmp 2>/dev/null)
-    rm -f /tmp/kanda_total.tmp
+    echo -e "  ${GREY}[*] Đang kiểm tra hệ thống...${NC}"
     
     install_services 
 
@@ -268,35 +219,80 @@ main() {
         cleanup
         clear
         
-        echo -e "  ${PURPLE}╭─── ${WHITE}🛠 CẤU HÌNH HỆ THỐNG${NC}"
-        echo -e "  ${PURPLE}│"
-        echo -e "  ${PURPLE}│${NC}  ${WHITE}🌐 Tổng Node:${NC} ${CYAN}${total_nodes:-N/A}${NC} ${GREY}đang chạy${NC}"
-        echo -e "  ${PURPLE}╰──────────────────────────────────────────${NC}"
+        echo -e "  ${PURPLE}╭─────────────────────────────────────╮${NC}"
+        echo -e "  ${PURPLE}│${NC}     ${WHITE}🛠  CẤU HÌNH HỆ THỐNG${NC}        ${PURPLE}│${NC}"
+        echo -e "  ${PURPLE}╰─────────────────────────────────────╯${NC}"
+        
+        printf "\n  ${PURPLE}◈${NC} ${GREEN}Tổng số Node đang hoạt động:${NC} "
+        total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
+        echo -e "${PURPLE}${total_nodes}${NC} ${GREY}nodes${NC}"
         
         select_country
         select_rotate_time
         
-        echo -e "\n  ${GREY}╭─ ${WHITE}KHỞI ĐỘNG${NC}"
-        echo -e "  ${GREY}│${NC}"
+        echo -e "\n  ${GREY}Đang áp dụng cấu hình và khởi động hệ thống...${NC}"
         install_services
         config_privoxy
         config_tor
         
         if run_tor; then
+            sleep 2 # Đợi mạch định tuyến ổn định
+            
+            # Lấy thông tin IP ban đầu
             ip_info=$(get_ip_info)
             ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
             ip_loc=$(echo "$ip_info" | cut -d'|' -f2)
             ip_ping=$(echo "$ip_info" | cut -d'|' -f3)
             
             local count=$sec
-            while [ "$stop_flag" == "false" ]; do
-                display_status "$ip_addr" "$ip_loc" "$ip_ping" "$count"
+            # Vòng lặp đếm ngược và cập nhật IP
+            while [[ "$stop_flag" == "false" ]]; do
+                clear
+                echo -e "\n  ${GREEN}╭─────────────────────────────────────╮${NC}"
+                echo -e "  ${GREEN}│${NC}     ${WHITE}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}         ${GREEN}│${NC}"
+                echo -e "  ${GREEN}╰─────────────────────────────────────╯${NC}"
+                
+                echo -e "  ${GREY}─────────────────────────────────────${NC}"
+                echo -e "  ${WHITE} 🔑 Cổng Proxy:${NC} ${YELLOW}127.0.0.1:8118${NC}"
+                echo -e "  ${WHITE} 🌍 Vùng chọn  :${NC} ${GREEN}${display_country}${NC}"
+                echo -e "  ${WHITE} ⏱ Chu kỳ XOAY:${NC} ${BLUE}${minute_input} phút${NC}"
+                echo -e "  ${GREY}─────────────────────────────────────${NC}"
+                
+                # Phần hiển thị IP mới thêm vào
+                echo -e "  ${PURPLE}╭─ ${WHITE}📡 KẾT NỐI HIỆN TẠI${NC}"
+                echo -e "  ${PURPLE}│${NC}  ${WHITE}IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
+                echo -e "  ${PURPLE}│${NC}  ${WHITE}Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
+                
+                # Đổi màu tốc độ mạng
+                local ping_color=$GREEN
+                if [[ "$ip_ping" =~ ^[0-9]+$ ]]; then
+                    if [ "$ip_ping" -gt 500 ]; then 
+                        ping_color=$RED
+                    elif [ "$ip_ping" -gt 200 ]; then 
+                        ping_color=$YELLOW
+                    fi
+                else
+                    ip_ping="N/A"
+                fi
+                echo -e "  ${PURPLE}│${NC}  ${WHITE}Tốc độ   :${NC} ${ping_color}${ip_ping} ms${NC}"
+                echo -e "  ${PURPLE}╰─────────────────────────────────────${NC}"
+                
+                # Đồng hồ đếm ngược
+                local mins=$((count / 60))
+                local secs_left=$((count % 60))
+                echo -e "\n  ${ORANGE}⏳ Đếm ngược xoay IP:${NC} ${WHITE}%02d:%02d${NC}" "$mins" "$secs_left"
+                
+                echo -e "\n  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+                echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
+                
                 sleep 1
                 count=$((count - 1))
                 
+                # Khi hết giờ, xoay IP mới
                 if [ $count -le 0 ]; then
                     ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
-                    sleep 5
+                    sleep 5 # Đợi tạo mạch mới
+                    # Cập nhật IP mới
                     ip_info=$(get_ip_info)
                     ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
                     ip_loc=$(echo "$ip_info" | cut -d'|' -f2)
@@ -304,6 +300,9 @@ main() {
                     count=$sec
                 fi
             done
+        else
+            echo -e "\n  ${RED}❌ Kết nối thất bại! Đang thử lại...${NC}"
+            sleep 3
         fi
         trap - SIGINT
     done
