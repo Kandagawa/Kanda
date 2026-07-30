@@ -216,15 +216,17 @@ run_tor() {
             clear
             echo -e "\n  ${GREEN}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
             echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            
             echo -e "  ${WHITE} 🔑 Địa chỉ  :${NC} ${YELLOW}127.0.0.1:8118${NC}"
             echo -e "  ${WHITE} 🌍 Quốc gia :${NC} ${GREEN}${display_country}${NC}"
             echo -e "  ${WHITE} ⏱ Chu kỳ    :${NC} ${BLUE}${minute_input} phút${NC} ${GREY}(${sec}s)${NC}"
             echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             
+            # Phần hiển thị thông tin kết nối
             echo -e "\n  ${PURPLE}📡 KẾT NỐI HIỆN TẠI${NC}"
             echo -e "  ${GREY}───────────────────────────────────────${NC}"
-            echo -e "  ${WHITE}🌐 IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
-            echo -e "  ${WHITE}📍 Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
+            echo -e "  ${WHITE} 🌐 IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
+            echo -e "  ${WHITE} 📍 Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
             
             # Đổi màu tốc độ mạng (Mbps)
             local speed_color=$GREEN
@@ -238,7 +240,7 @@ run_tor() {
                 ip_speed="0.00"
                 speed_color=$GREY
             fi
-            echo -e "  ${WHITE}⚡ Tốc độ    :${NC} ${speed_color}${ip_speed} Mbps${NC}"
+            echo -e "  ${WHITE} ⚡ Tốc độ    :${NC} ${speed_color}${ip_speed} Mbps${NC}"
             echo -e "  ${GREY}───────────────────────────────────────${NC}"
             
             # Phần thêm: Đồng hồ đếm ngược (Sử dụng printf để fix lỗi %02d:%02d)
