@@ -19,7 +19,6 @@ init_colors() {
     ORANGE='\033[1;38;5;209m'; PINK='\033[1;38;5;198m'
 }
 
-# Hiệu ứng spinner chạy nền
 spinner() {
     local pid=$1
     local msg=$2
@@ -57,6 +56,66 @@ cleanup() {
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
 }
 
+# Hàm lấy thông tin IP, Vị trí và Tốc độ mạng
+get_ip_info() {
+    local start_time end_time latency json ip country code
+    start_time=$(date +%s.%N)
+    json=$(curl -s --max-time 10 --proxy 127.0.0.1:8118 "http://ip-api.com/json")
+    end_time=$(date +%s.%N)
+    
+    if [[ -z "$json" || "$(echo "$json" | jq -r '.status' 2>/dev/null)" != "success" ]]; then
+        echo "Lỗi kết nối|Không xác định|0"
+        return
+    fi
+    
+    ip=$(echo "$json" | jq -r '.query')
+    country=$(echo "$json" | jq -r '.country')
+    code=$(echo "$json" | jq -r '.countryCode')
+    latency=$(awk -v s="$start_time" -v e="$end_time" 'BEGIN {t = (e - s) * 1000; printf "%.0f", t}')
+    
+    echo "${ip}|${country} (${code})|${latency}"
+}
+
+# Hàm vẽ bảng điều khiển trực tiếp
+display_status() {
+    local ip=$1
+    local loc=$2
+    local ping=$3
+    local countdown=$4
+    
+    # Định dạng thời gian đếm ngược MM:SS
+    local mins=$((countdown / 60))
+    local secs=$((countdown % 60))
+    
+    # Đổi màu tốc độ mạng theo độ trễ
+    local ping_color=$GREEN
+    if [[ $ping -gt 500 ]]; then 
+        ping_color=$RED; 
+    elif [[ $ping -gt 200 ]]; then 
+        ping_color=$YELLOW; 
+    fi
+    
+    clear
+    echo -e "  ${GREEN}╭─── ${WHITE}✅ HỆ THỐNG ĐANG HOẠT ĐỘNG${NC}"
+    echo -e "  ${GREEN}│"
+    echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Cổng Proxy:${NC} ${YELLOW}127.0.0.1:8118${NC}"
+    echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Vùng chọn  :${NC} ${CYAN}${display_country}${NC}"
+    echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Chu kỳ XOAY:${NC} ${BLUE}${minute_input} phút${NC}"
+    echo -e "  ${GREEN}╰──────────────────────────────────────────${NC}"
+    
+    echo -e "  ${PURPLE}╭─ ${WHITE}📡 THÔNG TIN KẾT NỐI HIỆN TẠI${NC}"
+    echo -e "  ${PURPLE}│${NC}  ${WHITE}Địa chỉ IP :${NC} ${YELLOW}${ip}${NC}"
+    echo -e "  ${PURPLE}│${NC}  ${WHITE}Vị trí     :${NC} ${CYAN}${loc}${NC}"
+    echo -e "  ${PURPLE}│${NC}  ${WHITE}Tốc độ     :${NC} ${ping_color}${ping} ms${NC}"
+    echo -e "  ${PURPLE}╰──────────────────────────────────────────${NC}"
+    
+    echo -e "  ${ORANGE}⏳ Đếm ngược xoay IP:${NC} ${WHITE}%02d:%02d${NC}" "$mins" "$secs"
+    
+    echo -e "\n  ${GREY}╭─ HƯỚNG DẪN${NC}"
+    echo -e "  ${GREY}├─▸${NC} ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+    echo -e "  ${GREY}└─▸${NC} ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
+}
+
 select_country() {
     echo -e "  ${CYAN}╭─ ${WHITE}🌐 VÙNG QUỐC GIA${NC}"
     while true; do
@@ -72,11 +131,8 @@ select_country() {
         elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
             country_code="$clean_input"
             
-            # Khởi chạy tiến trình kiểm tra ngầm
             ( curl -s "https://onionoo.torproject.org/summary?search=country:$country_code&running=true" | jq '.relays | length' > /tmp/kanda_nodes.tmp 2>/dev/null ) &
             local pid=$!
-            
-            # Chạy hiệu ứng spinner
             spinner $pid "Đang kiểm tra node cho ${country_code^^}"
             wait $pid
             
@@ -175,29 +231,10 @@ run_tor() {
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
     if [ "$is_ready" = true ]; then
-        clear
-        # Bảng Dashboard đẹp mắt
-        echo -e "  ${GREEN}╭─── ${WHITE}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC} ${GREEN}───────────────╮${NC}"
-        echo -e "  ${GREEN}│${NC}                                            ${GREEN}│${NC}"
-        echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Địa chỉ  :${NC} ${YELLOW}127.0.0.1:8118${NC}                  ${GREEN}│${NC}"
-        echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Quốc gia :${NC} ${CYAN}${display_country}${NC}                       ${GREEN}│${NC}"
-        echo -e "  ${GREEN}│${NC}  ${WHITE}◈ Chu kỳ    :${NC} ${BLUE}${minute_input} phút (${sec}s)${NC}               ${GREEN}│${NC}"
-        echo -e "  ${GREEN}│${NC}                                            ${GREEN}│${NC}"
-        echo -e "  ${GREEN}╰────────────────────────────────────────────╯${NC}"
-        
-        echo -e "\n  ${GREY}╭─ HƯỚNG DẪN${NC}"
-        echo -e "  ${GREY}│${NC}"
-        echo -e "  ${GREY}├─▸${NC} ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
-        echo -e "  ${GREY}└─▸${NC} ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
-        auto_rotate "$sec" > /dev/null 2>&1 &
-    fi
-}
-
-auto_rotate() {
-    local wait_time=$1
-    while true; do
-        sleep "$wait_time"
-        ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
+        sleep 2 # Đợi mạch định tuyến ổn định
+        return 0
+    else
+        return 1
     fi
 }
 
@@ -206,7 +243,6 @@ main() {
     init_colors
     clear
     
-    # Màn hình chào mừng
     echo -e "\n  ${PURPLE}╔══════════════════════════════════════════╗${NC}"
     echo -e "  ${PURPLE}║${NC}  ${CYAN}░K░A░N░D░A░ ${WHITE}P R O X Y${NC}  ${PURPLE}║${NC}"
     echo -e "  ${PURPLE}╚══════════════════════════════════════════╝${NC}"
@@ -227,12 +263,10 @@ main() {
         cleanup
         clear
         
-        # Khung cấu hình chính
-        echo -e "  ${PURPLE}╭─── ${WHITE}🛠 CẤU HÌNH HỆ THỐNG${NC} ${PURPLE}────────────────╮${NC}"
-        echo -e "  ${PURPLE}│${NC}                                            ${PURPLE}│${NC}"
-        echo -e "  ${PURPLE}│${NC}  ${WHITE}🌐 Tổng Node:${NC} ${CYAN}${total_nodes:-N/A}${NC} ${GREY}đang chạy${NC}        ${PURPLE}│${NC}"
-        echo -e "  ${PURPLE}│${NC}                                            ${PURPLE}│${NC}"
-        echo -e "  ${PURPLE}╰────────────────────────────────────────────╯${NC}"
+        echo -e "  ${PURPLE}╭─── ${WHITE}🛠 CẤU HÌNH HỆ THỐNG${NC}"
+        echo -e "  ${PURPLE}│"
+        echo -e "  ${PURPLE}│${NC}  ${WHITE}🌐 Tổng Node:${NC} ${CYAN}${total_nodes:-N/A}${NC} ${GREY}đang chạy${NC}"
+        echo -e "  ${PURPLE}╰──────────────────────────────────────────${NC}"
         
         select_country
         select_rotate_time
@@ -242,11 +276,27 @@ main() {
         install_services
         config_privoxy
         config_tor
-        run_tor
         
-        while [[ "$stop_flag" == "false" ]]; do 
-            sleep 0.5
-        done
+        if run_tor; then
+            # Lấy thông tin IP ban đầu
+            IFS='|' read -r ip_addr ip_loc ip_ping <<< "$(get_ip_info)"
+            
+            local count=$sec
+            while [[ "$stop_flag" == "false" ]]; do
+                display_status "$ip_addr" "$ip_loc" "$ip_ping" "$count"
+                sleep 1
+                count=$((count - 1))
+                
+                if [[ $count -le 0 ]]; then
+                    # Xoay IP mới
+                    ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
+                    sleep 5 # Đợi tạo mạch mới
+                    # Lấy thông tin IP mới
+                    IFS='|' read -r ip_addr ip_loc ip_ping <<< "$(get_ip_info)"
+                    count=$sec
+                fi
+            done
+        fi
         trap - SIGINT
     done
 }
