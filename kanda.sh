@@ -41,29 +41,38 @@ cleanup() {
     pkill -P $$ > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
+    rm -f "$PREFIX/tmp/kanda_ip_info.tmp" > /dev/null 2>&1
 }
 
-# Hàm lấy IP, Vị trí, Tốc độ
+# Hàm lấy IP, Vị trí, Tốc độ (Mbps)
 get_ip_info() {
-    local start_time end_time latency json ip country code
-    start_time=$(date +%s.%N)
+    local json ip country code speed_bytes speed_mbps
     json=$(curl -s --max-time 10 --proxy 127.0.0.1:8118 "http://ip-api.com/json")
-    end_time=$(date +%s.%N)
     
     if [ -z "$json" ]; then
-        echo "Lỗi kết nối|Không xác định|0"
+        echo "Lỗi kết nối|Không xác định|0.00"
         return
     fi
     local status=$(echo "$json" | jq -r '.status' 2>/dev/null)
     if [ "$status" != "success" ]; then
-        echo "Lỗi kết nối|Không xác định|0"
+        echo "Lỗi kết nối|Không xác định|0.00"
         return
     fi
     ip=$(echo "$json" | jq -r '.query')
     country=$(echo "$json" | jq -r '.country')
     code=$(echo "$json" | jq -r '.countryCode')
-    latency=$(awk -v s="$start_time" -v e="$end_time" 'BEGIN {t = (e - s) * 1000; printf "%.0f", t}')
-    echo "${ip}|${country} (${code})|${latency}"
+    
+    # Đo tốc độ tải file 1MB qua proxy (tính bằng bytes/giây)
+    speed_bytes=$(curl -s --max-time 15 -o /dev/null -w "%{speed_download}" --proxy 127.0.0.1:8118 "http://speedtest.tele2.net/1MB.zip")
+    
+    if [ -z "$speed_bytes" ] || [ "$speed_bytes" == "0.000" ]; then
+        speed_mbps="0.00"
+    else
+        # Quy đổi sang Mbps (1 Byte = 8 bits, 1 Mbps = 1000000 bits)
+        speed_mbps=$(awk -v s="$speed_bytes" 'BEGIN {printf "%.2f", (s * 8) / 1000000}')
+    fi
+    
+    echo "${ip}|${country} (${code})|${speed_mbps}"
 }
 
 select_country() {
@@ -177,19 +186,23 @@ run_tor() {
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
     if [ "$is_ready" = true ]; then
-        # Animation chờ ổn định mạch định tuyến
+        # Lấy thông tin IP và tốc độ mạng ngầm
+        ( get_ip_info > "$PREFIX/tmp/kanda_ip_info.tmp" ) &
+        local pid=$!
+        
         local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-        for i in 1 2 3 4 5 6 7 8 9; do
-            printf "\r\033[K  ${GREY}${spin:$((i % 10)):1} Đang ổn định kết nối...${NC}"
-            sleep 0.3
+        local i=0
+        while kill -0 $pid 2>/dev/null; do
+            printf "\r\033[K  ${GREY}${spin:$((i % 10)):1} Đang kiểm tra IP và tốc độ mạng...${NC}"
+            i=$((i + 1))
+            sleep 0.1
         done
         printf "\r\033[K"
         
-        # Lấy thông tin IP ban đầu
-        ip_info=$(get_ip_info)
+        ip_info=$(cat "$PREFIX/tmp/kanda_ip_info.tmp")
         ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
         ip_loc=$(echo "$ip_info" | cut -d'|' -f2)
-        ip_ping=$(echo "$ip_info" | cut -d'|' -f3)
+        ip_speed=$(echo "$ip_info" | cut -d'|' -f3)
         
         local count=$sec
         
@@ -211,19 +224,19 @@ run_tor() {
             echo -e "  ${PURPLE}│${NC}  ${WHITE}🌐 IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
             echo -e "  ${PURPLE}│${NC}  ${WHITE}📍 Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
             
-            # Đổi màu tốc độ mạng
-            local ping_color=$GREEN
-            if [[ "$ip_ping" =~ ^[0-9]+$ ]]; then
-                if [ "$ip_ping" -gt 500 ]; then 
-                    ping_color=$RED
-                elif [ "$ip_ping" -gt 200 ]; then 
-                    ping_color=$YELLOW
+            # Đổi màu tốc độ mạng (Mbps)
+            local speed_color=$GREEN
+            if [[ "$ip_speed" =~ ^[0-9.]+$ ]]; then
+                if awk -v s="$ip_speed" 'BEGIN {exit !(s < 1.0)}'; then 
+                    speed_color=$RED
+                elif awk -v s="$ip_speed" 'BEGIN {exit !(s < 5.0)}'; then 
+                    speed_color=$YELLOW
                 fi
             else
-                ip_ping="N/A"
-                ping_color=$GREY
+                ip_speed="0.00"
+                speed_color=$GREY
             fi
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}⚡ Tốc độ    :${NC} ${ping_color}${ip_ping} ms${NC}"
+            echo -e "  ${PURPLE}│${NC}  ${WHITE}⚡ Tốc độ    :${NC} ${speed_color}${ip_speed} Mbps${NC}"
             echo -e "  ${PURPLE}╰───────────────────────────────────────────${NC}"
             
             # Đếm ngược theo giây
@@ -242,19 +255,24 @@ run_tor() {
                 ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
                 sleep 3 # Đợi tạo mạch mới
                 
-                # Animation chờ lấy IP mới
-                local spin2='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-                for i in 1 2 3 4 5 6 7 8 9 10; do
-                    printf "\r\033[K  ${GREY}${spin2:$((i % 10)):1} Đang cập nhật IP mới...${NC}"
-                    sleep 0.3
+                # Lấy thông tin IP và tốc độ ngầm
+                ( get_ip_info > "$PREFIX/tmp/kanda_ip_info.tmp" ) &
+                local pid=$!
+                
+                local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+                local i=0
+                while kill -0 $pid 2>/dev/null; do
+                    printf "\r\033[K  ${GREY}${spin:$((i % 10)):1} Đang cập nhật IP và tốc độ mới...${NC}"
+                    i=$((i + 1))
+                    sleep 0.1
                 done
                 printf "\r\033[K"
                 
                 # Cập nhật IP mới
-                ip_info=$(get_ip_info)
+                ip_info=$(cat "$PREFIX/tmp/kanda_ip_info.tmp")
                 ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
                 ip_loc=$(echo "$ip_info" | cut -d'|' -f2)
-                ip_ping=$(echo "$ip_info" | cut -d'|' -f3)
+                ip_speed=$(echo "$ip_info" | cut -d'|' -f3)
                 count=$sec
             fi
         done
