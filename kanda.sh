@@ -43,7 +43,7 @@ cleanup() {
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
 }
 
-# Hàm thêm để lấy IP, Vị trí, Tốc độ
+# Hàm lấy IP, Vị trí, Tốc độ
 get_ip_info() {
     local start_time end_time latency json ip country code
     start_time=$(date +%s.%N)
@@ -177,7 +177,13 @@ run_tor() {
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
     if [ "$is_ready" = true ]; then
-        sleep 2 # Đợi mạch định tuyến ổn định
+        # Animation chờ ổn định mạch định tuyến
+        local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+        for i in 1 2 3 4 5 6 7 8 9; do
+            printf "\r\033[K  ${GREY}${spin:$((i % 10)):1} Đang ổn định kết nối...${NC}"
+            sleep 0.3
+        done
+        printf "\r\033[K"
         
         # Lấy thông tin IP ban đầu
         ip_info=$(get_ip_info)
@@ -190,20 +196,20 @@ run_tor() {
         # Vòng lặp hiển thị kết quả và đếm ngược
         while [[ "$stop_flag" == "false" ]]; do
             clear
-            echo -e "\n  ${GREEN}╭─────────────────────────────────────╮${NC}"
-            echo -e "  ${GREEN}│${NC}     ${WHITE}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}         ${GREEN}│${NC}"
-            echo -e "  ${GREEN}╰─────────────────────────────────────╯${NC}"
+            echo -e "\n  ${GREEN}╭───────────────────────────────────────────╮${NC}"
+            echo -e "  ${GREEN}│${NC}      ${WHITE}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}            ${GREEN}│${NC}"
+            echo -e "  ${GREEN}╰───────────────────────────────────────────╯${NC}"
             
-            echo -e "  ${GREY}─────────────────────────────────────${NC}"
-            echo -e "  ${WHITE} 🔑 Địa chỉ  :${NC} ${YELLOW}127.0.0.1:8118${NC}"
-            echo -e "  ${WHITE} 🌍 Quốc gia :${NC} ${GREEN}${display_country}${NC}"
-            echo -e "  ${WHITE} ⏱ Chu kỳ    :${NC} ${BLUE}${minute_input} phút (${sec}s)${NC}"
-            echo -e "  ${GREY}─────────────────────────────────────${NC}"
+            echo -e "  ${GREY}───────────────────────────────────────────${NC}"
+            echo -e "  ${WHITE} 🔑 Cổng Proxy :${NC} ${YELLOW}127.0.0.1:8118${NC}"
+            echo -e "  ${WHITE} 🌍 Vùng chọn  :${NC} ${GREEN}${display_country}${NC}"
+            echo -e "  ${WHITE} ⏱ Chu kỳ XOAY :${NC} ${BLUE}${minute_input} phút${NC}"
+            echo -e "  ${GREY}───────────────────────────────────────────${NC}"
             
-            # Phần thêm: Hiển thị thông tin kết nối
+            # Phần hiển thị thông tin kết nối
             echo -e "  ${PURPLE}╭─ ${WHITE}📡 KẾT NỐI HIỆN TẠI${NC}"
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
+            echo -e "  ${PURPLE}│${NC}  ${WHITE}🌐 IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
+            echo -e "  ${PURPLE}│${NC}  ${WHITE}📍 Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
             
             # Đổi màu tốc độ mạng
             local ping_color=$GREEN
@@ -215,14 +221,13 @@ run_tor() {
                 fi
             else
                 ip_ping="N/A"
+                ping_color=$GREY
             fi
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}Tốc độ   :${NC} ${ping_color}${ip_ping} ms${NC}"
-            echo -e "  ${PURPLE}╰─────────────────────────────────────${NC}"
+            echo -e "  ${PURPLE}│${NC}  ${WHITE}⚡ Tốc độ    :${NC} ${ping_color}${ip_ping} ms${NC}"
+            echo -e "  ${PURPLE}╰───────────────────────────────────────────${NC}"
             
-            # Phần thêm: Đồng hồ đếm ngược
-            local mins=$((count / 60))
-            local secs_left=$((count % 60))
-            echo -e "\n  ${ORANGE}⏳ Đếm ngược xoay IP:${NC} ${WHITE}%02d:%02d${NC}" "$mins" "$secs_left"
+            # Đếm ngược theo giây
+            echo -e "\n  ${ORANGE}⏳ Thời gian xoay IP còn:${NC} ${WHITE}${count} giây${NC}"
             
             echo -e "\n  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
             echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
@@ -232,8 +237,19 @@ run_tor() {
             
             # Khi hết giờ, xoay IP mới
             if [ $count -le 0 ]; then
+                clear
+                echo -e "\n  ${CYAN}⏳ Đang xoay IP mới, vui lòng đợi...${NC}"
                 ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
-                sleep 5 # Đợi tạo mạch mới
+                sleep 3 # Đợi tạo mạch mới
+                
+                # Animation chờ lấy IP mới
+                local spin2='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+                for i in 1 2 3 4 5 6 7 8 9 10; do
+                    printf "\r\033[K  ${GREY}${spin2:$((i % 10)):1} Đang cập nhật IP mới...${NC}"
+                    sleep 0.3
+                done
+                printf "\r\033[K"
+                
                 # Cập nhật IP mới
                 ip_info=$(get_ip_info)
                 ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
