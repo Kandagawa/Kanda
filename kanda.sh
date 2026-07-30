@@ -26,12 +26,12 @@ render_bar() {
     local filled=$((percent*w/100))
     local empty=$((w-filled))
     
-    printf "\r\033[K  ${CYAN}${label}${NC} ${GREY}[${NC}"
-    printf "${GREEN}"
+    printf "\r\033[K  ${GREY}${label}: ${NC}["
+    printf "${CYAN}"
     for ((j=0; j<filled; j++)); do printf "█"; done
     printf "${GREY}"
     for ((j=0; j<empty; j++)); do printf "░"; done
-    printf "${GREY}]${NC} ${YELLOW}%d%%${NC}" "$percent"
+    printf "${NC}] ${WHITE}%d%%${NC}" "$percent"
 }
 
 cleanup() {
@@ -75,9 +75,9 @@ get_ip_info() {
 }
 
 select_country() {
-    echo -e "\n  ${CYAN}┌─ ${WHITE}🌐 VÙNG QUỐC GIA${NC}"
+    echo -e "\n  ${CYAN}🌐 VÙNG QUỐC GIA${NC}"
     while true; do
-        printf "  ${CYAN}└─▸${NC} ${GREY}Mã vùng (us, jp, vn, sg... | all):${NC} ${YELLOW}"
+        printf "  ${GREY}└─▸${NC} ${GREY}Mã vùng (us, jp, vn, sg... | all):${NC} ${YELLOW}"
         read input </dev/tty
         clean_input=$(echo "$input" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
         
@@ -114,9 +114,9 @@ select_country() {
 }
 
 select_rotate_time() {
-    echo -e "\n  ${BLUE}┌─ ${WHITE}⏱ THỜI GIAN XOAY IP${NC}"
+    echo -e "\n  ${BLUE}⏱ THỜI GIAN XOAY IP${NC}"
     while true; do
-        printf "  ${BLUE}└─▸${NC} ${GREY}Số phút (1 đến 9):${NC} ${YELLOW}"
+        printf "  ${GREY}└─▸${NC} ${GREY}Số phút (1 đến 9):${NC} ${YELLOW}"
         read minute_input </dev/tty
         if [[ "$minute_input" =~ ^[1-9]$ ]]; then
             sec=$((minute_input * 60))
@@ -176,11 +176,14 @@ run_tor() {
     while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            render_bar "Tiến trình 2" "$percent"
-            if [ "$percent" -eq 100 ]; then
-                is_ready=true
-                break
+            # Đổi sang grep -oE để fix lỗi spam dòng trên Termux
+            percent=$(echo "$line" | grep -oE "[0-9]+" | head -1)
+            if [ -n "$percent" ]; then
+                render_bar "Tiến trình 2" "$percent"
+                if [ "$percent" -eq 100 ]; then
+                    is_ready=true
+                    break
+                fi
             fi
         fi
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
@@ -211,20 +214,17 @@ run_tor() {
         # Vòng lặp hiển thị kết quả và đếm ngược
         while [[ "$stop_flag" == "false" ]]; do
             clear
-            echo -e "\n  ${GREEN}╭───────────────────────────────────────────╮${NC}"
-            echo -e "  ${GREEN}│${NC}      ${WHITE}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}            ${GREEN}│${NC}"
-            echo -e "  ${GREEN}╰───────────────────────────────────────────╯${NC}"
-            
-            echo -e "  ${GREY}───────────────────────────────────────────${NC}"
+            echo -e "\n  ${GREEN}✅ HỆ THỐNG ĐÃ SẴN SÀNG${NC}"
+            echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             echo -e "  ${WHITE} 🔑 Địa chỉ  :${NC} ${YELLOW}127.0.0.1:8118${NC}"
             echo -e "  ${WHITE} 🌍 Quốc gia :${NC} ${GREEN}${display_country}${NC}"
             echo -e "  ${WHITE} ⏱ Chu kỳ    :${NC} ${BLUE}${minute_input} phút${NC} ${GREY}(${sec}s)${NC}"
-            echo -e "  ${GREY}───────────────────────────────────────────${NC}"
+            echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             
-            # Phần hiển thị thông tin kết nối
-            echo -e "  ${PURPLE}╭─ ${WHITE}📡 KẾT NỐI HIỆN TẠI${NC}"
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}🌐 IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}📍 Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
+            echo -e "\n  ${PURPLE}📡 KẾT NỐI HIỆN TẠI${NC}"
+            echo -e "  ${GREY}───────────────────────────────────────${NC}"
+            echo -e "  ${WHITE}🌐 IP thực   :${NC} ${YELLOW}${ip_addr}${NC}"
+            echo -e "  ${WHITE}📍 Vị trí    :${NC} ${CYAN}${ip_loc}${NC}"
             
             # Đổi màu tốc độ mạng (Mbps)
             local speed_color=$GREEN
@@ -238,8 +238,8 @@ run_tor() {
                 ip_speed="0.00"
                 speed_color=$GREY
             fi
-            echo -e "  ${PURPLE}│${NC}  ${WHITE}⚡ Tốc độ    :${NC} ${speed_color}${ip_speed} Mbps${NC}"
-            echo -e "  ${PURPLE}╰───────────────────────────────────────────${NC}"
+            echo -e "  ${WHITE}⚡ Tốc độ    :${NC} ${speed_color}${ip_speed} Mbps${NC}"
+            echo -e "  ${GREY}───────────────────────────────────────${NC}"
             
             # Phần thêm: Đồng hồ đếm ngược (Sử dụng printf để fix lỗi %02d:%02d)
             local mins=$((count / 60))
@@ -288,9 +288,8 @@ main() {
     init_colors
     clear
     
-    echo -e "\n  ${PURPLE}╭───────────────────────────────────────────╮${NC}"
-    echo -e "  ${PURPLE}│${NC}      ${CYAN}⚙️  KANDA PROXY SYSTEM${NC}         ${PURPLE}│${NC}"
-    echo -e "  ${PURPLE}╰───────────────────────────────────────────╯${NC}"
+    echo -e "\n  ${CYAN}⚙️  SETUP LẦN ĐẦU${NC}"
+    echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "  ${YELLOW}! Đảm bảo kết nối mạng ổn định${NC}"
     echo -e "  ${GREY}[*] Đang kiểm tra hệ thống...${NC}"
     
@@ -302,9 +301,8 @@ main() {
         cleanup
         clear
         
-        echo -e "  ${PURPLE}╭───────────────────────────────────────────╮${NC}"
-        echo -e "  ${PURPLE}│${NC}     ${WHITE}🛠  CẤU HÌNH HỆ THỐNG${NC}            ${PURPLE}│${NC}"
-        echo -e "  ${PURPLE}╰───────────────────────────────────────────╯${NC}"
+        echo -e "  ${PURPLE}🛠  CẤU HÌNH HỆ THỐNG${NC}"
+        echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         
         # Fix lỗi buộc phải lấy total_nodes trước khi in ra
         total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
@@ -313,7 +311,7 @@ main() {
         select_country
         select_rotate_time
         
-        echo -e "\n  ${GREY}Đang áp dụng cấu hình và khởi động Tor...${NC}"
+        echo -e "\n  ${GREY}Đang áp dụng cấu hình và khởi động hệ thống...${NC}"
         install_services
         config_privoxy
         config_tor
