@@ -41,6 +41,7 @@ cleanup() {
     pkill -P $$ > /dev/null 2>&1
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
+    rm -f "$PREFIX/tmp/kanda_tor_log.tmp" > /dev/null 2>&1
 }
 
 get_ip_info() {
@@ -160,9 +161,11 @@ config_tor() {
 
 run_tor() {
     pkill -9 tor > /dev/null 2>&1
-    rm -f /tmp/kanda_tor_log.tmp
+    mkdir -p "$PREFIX/tmp/"
+    rm -f "$PREFIX/tmp/kanda_tor_log.tmp"
+    
     # Chạy tor ngầm, xuất log ra file tạm để đọc tiến trình
-    stdbuf -oL tor -f "$TORRC" > /tmp/kanda_tor_log.tmp 2>&1 &
+    stdbuf -oL tor -f "$TORRC" > "$PREFIX/tmp/kanda_tor_log.tmp" 2>&1 &
     local tor_pid=$!
     
     render_bar "Tiến trình 2" 0
@@ -177,13 +180,13 @@ run_tor() {
         fi
         
         # Đọc phần trăm kết nối từ file log
-        if grep -q "Bootstrapped 100%" /tmp/kanda_tor_log.tmp 2>/dev/null; then
+        if grep -q "Bootstrapped 100%" "$PREFIX/tmp/kanda_tor_log.tmp" 2>/dev/null; then
             render_bar "Tiến trình 2" 100
             is_ready=true
             break
         fi
         
-        local percent=$(grep -oP "Bootstrapped \K\d+" /tmp/kanda_tor_log.tmp 2>/dev/null | tail -1)
+        local percent=$(grep -oP "Bootstrapped \K\d+" "$PREFIX/tmp/kanda_tor_log.tmp" 2>/dev/null | tail -1)
         if [ -n "$percent" ]; then
             render_bar "Tiến trình 2" "$percent"
         fi
