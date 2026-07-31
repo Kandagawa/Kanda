@@ -180,13 +180,11 @@ run_tor() {
     while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oE "[0-9]+" | head -1)
-            if [ -n "$percent" ]; then
-                render_bar "Tiến trình 2" "$percent"
-                if [ "$percent" -eq 100 ]; then
-                    is_ready=true
-                    break
-                fi
+            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
+            render_bar "Tiến trình 2" "$percent"
+            if [ "$percent" -eq 100 ]; then
+                is_ready=true
+                break
             fi
         fi
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
@@ -241,7 +239,7 @@ run_tor() {
             fi
             echo -e "  ${GREY}───────────────────────────────────────${NC}"
             
-            # Phần thêm: Đồng hồ đếm ngược
+            # Phần thêm: Đồng hồ đếm ngược (Sử dụng printf để fix lỗi %02d:%02d)
             local mins=$((count / 60))
             local secs_left=$((count % 60))
             printf "\n  ${ORANGE}⏳ Đếm ngược xoay IP:${NC} ${WHITE}%02d:%02d${NC}\n" "$mins" "$secs_left"
