@@ -69,7 +69,8 @@ init_language() {
         TXT_COUNT="⏳ Đếm ngược xoay IP:"
         TXT_KEY_R="[Nhấn R] : Chọn lại cấu hình"
         TXT_KEY_X="[Nhấn X] : Xoay IP ngay lập tức"
-        TXT_KEY_K="[Nhấn K] : Truy cập link GitHub"
+        TXT_KEY_Y="[Nhấn Y] : Kênh Youtube"
+        TXT_KEY_D="[Nhấn D] : Máy chủ Discord"
         TXT_KEY_E="[Nhấn E] : Thoát khỏi ứng dụng"
         TXT_EXIT="❌ Đã thoát hệ thống. Tạm biệt!"
         TXT_ROT="⏳ ĐANG XOAY IP & TẢI DỮ LIỆU"
@@ -109,7 +110,8 @@ init_language() {
         TXT_COUNT="⏳ IP rotation countdown:"
         TXT_KEY_R="[Press R] : Reconfigure"
         TXT_KEY_X="[Press X] : Rotate IP now"
-        TXT_KEY_K="[Press K] : Open GitHub link"
+        TXT_KEY_Y="[Press Y] : Youtube Channel"
+        TXT_KEY_D="[Press D] : Discord Server"
         TXT_KEY_E="[Press E] : Exit application"
         TXT_EXIT="❌ System exited. Goodbye!"
         TXT_ROT="⏳ ROTATING IP & LOADING DATA"
@@ -349,10 +351,11 @@ run_tor() {
             local secs_left=$((count % 60))
             printf "\n  ${ORANGE}${TXT_COUNT}${NC} ${WHITE}%02d:%02d${NC}\n" "$mins" "$secs_left"
             
-            echo -e "\n  ${GREY}» ${YELLOW}${TXT_KEY_R}${NC}"
-            echo -e "  ${GREY}» ${YELLOW}${TXT_KEY_X}${NC}"
-            echo -e "  ${GREY}» ${YELLOW}${TXT_KEY_K}${NC}"
-            echo -e "  ${GREY}» ${YELLOW}${TXT_KEY_E}${NC}\n"
+            echo -e "\n  ${GREY}» ${RED}${TXT_KEY_R}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_X}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_Y}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_D}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_E}${NC}\n"
             
             # Đọc phím trong 1 giây thay cho sleep 1
             read -t 1 -n 1 -s key </dev/tty
@@ -361,8 +364,10 @@ run_tor() {
                 break
             elif [[ "$key" == "x" || "$key" == "X" ]]; then
                 count=1 # Ép count về 1 để nhảy về 0 và xoay ngay
-            elif [[ "$key" == "k" || "$key" == "K" ]]; then
-                am start -a android.intent.action.VIEW -d "https://github.com/Kandagawa/Kanda/blob/main/kanda.sh" > /dev/null 2>&1
+            elif [[ "$key" == "y" || "$key" == "Y" ]]; then
+                am start -a android.intent.action.VIEW -d "https://youtube.com/@kandakashiko?si=C2wG-ljOf9nLQbFi" > /dev/null 2>&1
+            elif [[ "$key" == "d" || "$key" == "D" ]]; then
+                am start -a android.intent.action.VIEW -d "https://discord.gg/7ERYA9ArWH" > /dev/null 2>&1
             elif [[ "$key" == "e" || "$key" == "E" ]]; then
                 cleanup
                 clear
