@@ -42,6 +42,7 @@ cleanup() {
     rm -rf $PREFIX/var/lib/tor/* > /dev/null 2>&1
     rm -f "$PREFIX/tmp/progress_kanda" > /dev/null 2>&1
     rm -f "$PREFIX/tmp/kanda_speed.tmp" > /dev/null 2>&1
+    rm -f "$PREFIX/tmp/kanda_newip.tmp" > /dev/null 2>&1
 }
 
 # Hàm lấy IP, Vị trí (Nhanh)
@@ -64,7 +65,7 @@ get_ip_info() {
     echo "${ip}|${country} (${code})"
 }
 
-# Hàm đo tốc độ mạng ngầm (Mbps)
+# Hàm đo tốc độ mạng ngầm (Mbps) cho lần kết nối đầu
 test_speed_once() {
     rm -f "$PREFIX/tmp/kanda_speed.tmp"
     (
@@ -239,26 +240,64 @@ run_tor() {
             fi
             echo -e "  ${GREY}───────────────────────────────────────${NC}"
             
-            # Phần thêm: Đồng hồ đếm ngược (Sử dụng printf để fix lỗi %02d:%02d)
+            # Phần thêm: Đồng hồ đếm ngược
             local mins=$((count / 60))
             local secs_left=$((count % 60))
             printf "\n  ${ORANGE}⏳ Đếm ngược xoay IP:${NC} ${WHITE}%02d:%02d${NC}\n" "$mins" "$secs_left"
             
             echo -e "\n  ${GREY}» ${RED}[CTRL+C]${GREY}           : Đặt lại cấu hình${NC}"
+            echo -e "  ${GREY}» ${RED}[Nhấn X]${GREY}            : Xoay IP ngay lập tức${NC}"
             echo -e "  ${GREY}» ${RED}[CTRL+C]+[CTRL+Z]${GREY}  : Dừng hoàn toàn${NC}\n"
             
-            sleep 1
+            # Đọc phím thay cho sleep 1 để bắt phím X
+            read -t 1 -n 1 -s key </dev/tty
+            if [[ "$key" == "x" || "$key" == "X" ]]; then
+                count=1 # Ép count về 1 để nhảy về 0 và xoay ngay
+            fi
+            
             count=$((count - 1))
             
-            # Khi hết giờ, xoay IP mới
+            # Khi hết giờ, xoay IP mới và gộp load tất cả thông tin
             if [ $count -le 0 ]; then
-                ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
-                sleep 5 # Đợi tạo mạch mới
+                clear
+                echo -e "\n  ${CYAN}⏳ ĐANG XOAY IP & TẢI DỮ LIỆU${NC}"
+                echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                
+                # Chạy ngầm quá trình xoay, lấy IP và đo tốc độ gộp vào 1
+                (
+                    ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
+                    sleep 3
+                    new_ip_info=$(get_ip_info)
+                    new_ip_addr=$(echo "$new_ip_info" | cut -d'|' -f1)
+                    new_ip_loc=$(echo "$new_ip_info" | cut -d'|' -f2)
+                    echo "${new_ip_addr}|${new_ip_loc}" > "$PREFIX/tmp/kanda_newip.tmp"
+                    
+                    speed_bytes=$(curl -s --max-time 15 -o /dev/null -w "%{speed_download}" --proxy 127.0.0.1:8118 "http://speedtest.tele2.net/1MB.zip")
+                    if [ -z "$speed_bytes" ] || [ "$speed_bytes" == "0.000" ]; then
+                        speed_mbps="0.00"
+                    else
+                        speed_mbps=$(awk -v s="$speed_bytes" 'BEGIN {printf "%.2f", (s * 8) / 1000000}')
+                    fi
+                    echo "$speed_mbps" > "$PREFIX/tmp/kanda_speed.tmp"
+                ) &
+                local load_pid=$!
+                
+                # Vòng lặp chờ tải xong
+                local load_i=0
+                while kill -0 $load_pid 2>/dev/null; do
+                    printf "\r  ${ORANGE}%s${NC} ${GREY}Vui lòng đợi hoàn tất...${NC}" "${spin:$((load_i % 10)):1}"
+                    load_i=$((load_i + 1))
+                    sleep 0.1
+                done
+                printf "\r\033[K"
+                
                 # Cập nhật IP mới
-                ip_info=$(get_ip_info)
-                ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
-                ip_loc=$(echo "$ip_info" | cut -d'|' -f2)
-                test_speed_once # Đo lại tốc độ IP mới
+                if [ -f "$PREFIX/tmp/kanda_newip.tmp" ]; then
+                    ip_addr=$(cat "$PREFIX/tmp/kanda_newip.tmp" | cut -d'|' -f1)
+                    ip_loc=$(cat "$PREFIX/tmp/kanda_newip.tmp" | cut -d'|' -f2)
+                    rm -f "$PREFIX/tmp/kanda_newip.tmp"
+                fi
+                
                 count=$sec
             fi
         done
