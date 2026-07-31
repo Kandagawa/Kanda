@@ -50,7 +50,7 @@ init_language() {
         TXT_PROMPT_CT="Mã vùng (us, jp, vn, sg... | all):"
         TXT_GLOBAL_OK="✓ Đã chọn toàn cầu."
         TXT_CHK_IP="⏳ Đang kiểm tra IP cho"
-        TXT_INVALID="✗ Mã không hợp lệ! Vui lòng nhập lại."
+        TXT_INVALID="✗ Mã không hợp lệ! Vui lòng nhập mã ISO 3166-1 alpha-2."
         TXT_TIME_TITLE="⏱ THỜI GIAN XOAY IP"
         TXT_PROMPT_MIN="Số phút (1 đến 9):"
         TXT_MIN_OK="✓ Đã đặt chu kỳ xoay:"
@@ -67,11 +67,16 @@ init_language() {
         TXT_SPD="⚡ Tốc độ    "
         TXT_SPD_LOAD="Đang đo tốc độ mạng..."
         TXT_COUNT="⏳ Đếm ngược xoay IP:"
-        TXT_KEY_R="[Nhấn R] : Chọn lại cấu hình"
-        TXT_KEY_X="[Nhấn X] : Xoay IP ngay lập tức"
-        TXT_KEY_Y="[Nhấn Y] : Kênh Youtube"
-        TXT_KEY_D="[Nhấn D] : Máy chủ Discord"
-        TXT_KEY_E="[Nhấn E] : Thoát khỏi ứng dụng"
+        TXT_KEY_R="[Nhấn R]"
+        TXT_KEY_R_DESC="Chọn lại cấu hình"
+        TXT_KEY_X="[Nhấn X]"
+        TXT_KEY_X_DESC="Xoay IP ngay lập tức"
+        TXT_KEY_Y="[Nhấn Y]"
+        TXT_KEY_Y_DESC="Kênh Youtube"
+        TXT_KEY_D="[Nhấn D]"
+        TXT_KEY_D_DESC="Máy chủ Discord"
+        TXT_KEY_E="[Nhấn E]"
+        TXT_KEY_E_DESC="Thoát khỏi ứng dụng"
         TXT_EXIT="❌ Đã thoát hệ thống. Tạm biệt!"
         TXT_ROT="⏳ ĐANG XOAY IP & TẢI DỮ LIỆU"
         TXT_WAIT="Vui lòng đợi hoàn tất..."
@@ -91,7 +96,7 @@ init_language() {
         TXT_PROMPT_CT="Country code (us, jp, vn, sg... | all):"
         TXT_GLOBAL_OK="✓ Global selected."
         TXT_CHK_IP="⏳ Checking IPs for"
-        TXT_INVALID="✗ Invalid code! Please try again."
+        TXT_INVALID="✗ Invalid code! Please enter ISO 3166-1 alpha-2 code."
         TXT_TIME_TITLE="⏱ IP ROTATION TIME"
         TXT_PROMPT_MIN="Minutes (1 to 9):"
         TXT_MIN_OK="✓ Rotation cycle set:"
@@ -108,11 +113,16 @@ init_language() {
         TXT_SPD="⚡ Speed     "
         TXT_SPD_LOAD="Measuring network speed..."
         TXT_COUNT="⏳ IP rotation countdown:"
-        TXT_KEY_R="[Press R] : Reconfigure"
-        TXT_KEY_X="[Press X] : Rotate IP now"
-        TXT_KEY_Y="[Press Y] : Youtube Channel"
-        TXT_KEY_D="[Press D] : Discord Server"
-        TXT_KEY_E="[Press E] : Exit application"
+        TXT_KEY_R="[Press R]"
+        TXT_KEY_R_DESC="Reconfigure"
+        TXT_KEY_X="[Press X]"
+        TXT_KEY_X_DESC="Rotate IP now"
+        TXT_KEY_Y="[Press Y]"
+        TXT_KEY_Y_DESC="Youtube Channel"
+        TXT_KEY_D="[Press D]"
+        TXT_KEY_D_DESC="Discord Server"
+        TXT_KEY_E="[Press E]"
+        TXT_KEY_E_DESC="Exit application"
         TXT_EXIT="❌ System exited. Goodbye!"
         TXT_ROT="⏳ ROTATING IP & LOADING DATA"
         TXT_WAIT="Please wait to complete..."
@@ -197,7 +207,8 @@ select_country() {
             country_code=""
             echo -e "      ${GREEN}${TXT_GLOBAL_OK}${NC}"
             break
-        elif [[ "$clean_input" =~ ^[a-z]{2}$ ]]; then
+        # Kiểm tra chuẩn ISO 3166-1 alpha-2
+        elif [[ "$clean_input" =~ ^(af|ax|al|dz|as|ad|ao|ai|aq|ag|ar|am|aw|au|at|az|bs|bh|bd|bb|by|be|bz|bj|bm|bt|bo|bq|ba|bw|bv|br|io|bn|bg|bf|bi|kh|cm|ca|cv|ky|cf|td|cl|cn|cx|cc|co|km|cg|cd|ck|cr|ci|hr|cu|cw|cy|cz|dk|dj|dm|do|ec|eg|sv|gq|er|ee|et|fk|fo|fj|fi|fr|gf|pf|tf|ga|gm|ge|de|gh|gi|gr|gl|gd|gp|gu|gt|gg|gn|gw|gy|ht|hm|va|hn|hk|hu|is|in|id|ir|iq|ie|im|il|it|jm|jp|je|jo|kz|ke|ki|kp|kr|kw|kg|la|lv|lb|ls|lr|ly|li|lt|lu|mo|mk|mg|mw|my|mv|ml|mt|mh|mq|mr|mu|yt|mx|fm|md|mc|mn|me|ms|ma|mz|mm|na|nr|np|nl|nc|nz|ni|ne|ng|nu|nf|mp|no|om|pk|pw|ps|pa|pg|py|pe|ph|pn|pl|pt|pr|qa|re|ro|ru|rw|bl|sh|kn|lc|mf|pm|vc|ws|sm|st|sa|sn|rs|sc|sl|sg|sx|sk|si|sb|so|za|gs|ss|es|lk|sd|sr|sj|sz|se|ch|sy|tw|tj|tz|th|tl|tg|tk|to|tt|tn|tr|tm|tc|tv|ug|ua|ae|gb|us|um|uy|uz|vu|ve|vn|vg|vi|wf|eh|ye|zm|zw)$ ]]; then
             country_code="$clean_input"
             
             # Kiểm tra số lượng IP của quốc gia vừa nhập
@@ -351,11 +362,12 @@ run_tor() {
             local secs_left=$((count % 60))
             printf "\n  ${ORANGE}${TXT_COUNT}${NC} ${WHITE}%02d:%02d${NC}\n" "$mins" "$secs_left"
             
-            echo -e "\n  ${GREY}» ${RED}${TXT_KEY_R}${NC}"
-            echo -e "  ${GREY}» ${RED}${TXT_KEY_X}${NC}"
-            echo -e "  ${GREY}» ${RED}${TXT_KEY_Y}${NC}"
-            echo -e "  ${GREY}» ${RED}${TXT_KEY_D}${NC}"
-            echo -e "  ${GREY}» ${RED}${TXT_KEY_E}${NC}\n"
+            # Phần hiển thị nút ấn (Đỏ - Cyan)
+            echo -e "\n  ${GREY}» ${RED}${TXT_KEY_R}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_R_DESC}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_X}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_X_DESC}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_Y}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_Y_DESC}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_D}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_D_DESC}${NC}"
+            echo -e "  ${GREY}» ${RED}${TXT_KEY_E}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_E_DESC}${NC}\n"
             
             # Đọc phím trong 1 giây thay cho sleep 1
             read -t 1 -n 1 -s key </dev/tty
