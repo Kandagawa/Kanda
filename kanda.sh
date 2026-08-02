@@ -1,14 +1,3 @@
-Để script có thể tự động nhận diện môi trường và chạy mượt mà trên cả **PC (Linux/macOS)** lẫn **Termux (Android)**, mình đã thêm hàm `detect_environment()`. 
-
-Những thay đổi để tương thích PC:
-1. **Tự nhận diện OS**: Phân biệt Termux, Linux (Ubuntu/Debian) và macOS.
-2. **Đường dẫn an toàn**: Nếu không phải Termux, hệ thống sẽ tự tạo thư mục dữ liệu tại `~/.kanda` để không bị lỗi quyền truy cập (permission denied) trên PC.
-3. **Lệnh cài đặt phù hợp**: Tự dùng `pkg` (Termux), `apt-get` (Linux) hoặc `brew` (macOS) để cài `tor`, `privoxy`, `jq`...
-4. **Mở link thông minh**: Lệnh mở Youtube/Discord sẽ tự dùng `am` (Termux), `xdg-open` (Linux) hoặc `open` (macOS).
-
-Đây là mã nguồn hoàn chỉnh:
-
-```bash
 #!/usr/bin/env bash
 
 # Hàm phát hiện môi trường hệ thống
@@ -537,4 +526,3 @@ main() {
 }
 
 main
-```
