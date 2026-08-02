@@ -1,13 +1,50 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/usr/bin/env bash
+
+# Hàm phát hiện môi trường hệ thống
+detect_environment() {
+    if [ -d "/data/data/com.termux" ]; then
+        ENV_OS="termux"
+    elif command -v apt-get &>/dev/null; then
+        ENV_OS="linux"
+        PREFIX="$HOME/.kanda"
+        SUDO_CMD="sudo"
+    elif command -v brew &>/dev/null; then
+        ENV_OS="macos"
+        PREFIX="$HOME/.kanda"
+        SUDO_CMD=""
+    else
+        ENV_OS="linux"
+        PREFIX="$HOME/.kanda"
+        SUDO_CMD="sudo"
+    fi
+    mkdir -p "$PREFIX/etc" "$PREFIX/bin" "$PREFIX/tmp" "$PREFIX/var/lib/tor"
+}
+
+# Hàm mở link đa nền tảng
+open_url() {
+    local url=$1
+    if [ "$ENV_OS" == "termux" ]; then
+        am start -a android.intent.action.VIEW -d "$url" > /dev/null 2>&1
+    elif [ "$ENV_OS" == "macos" ]; then
+        open "$url" > /dev/null 2>&1
+    else
+        xdg-open "$url" > /dev/null 2>&1
+    fi
+}
 
 init_alias() {
     if ! grep -q "alias kanda=" ~/.bashrc; then
         echo "alias kanda='curl -Ls is.gd/kandaprx | bash'" >> ~/.bashrc
         echo -e 'echo -e "\\n\\033[1;30m Lệnh quay lại cấu hình nhập: \\033[1;36mkanda\\033[0m\\n"' >> ~/.bashrc
         if [ ! -f "$PREFIX/bin/kanda" ]; then
-            echo -e '#!/data/data/com.termux/files/usr/bin/bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
+            echo -e '#!/usr/bin/env bash\ncurl -Ls is.gd/kandaprx | bash' > "$PREFIX/bin/kanda"
             chmod +x "$PREFIX/bin/kanda"
         fi
+        case ":$PATH:" in
+            *":$PREFIX/bin:"*) ;;
+            *) echo 'export PATH="$PATH:'"$PREFIX/bin"'"' >> ~/.bashrc 
+               export PATH="$PATH:$PREFIX/bin" ;;
+        esac
         source ~/.bashrc > /dev/null 2>&1
     fi
 }
@@ -255,8 +292,16 @@ install_services() {
     echo -e "\n  ${GREY}${TXT_CHKSYS}${NC}"
     if ! command -v tor &>/dev/null || ! command -v privoxy &>/dev/null || ! command -v jq &>/dev/null; then
         render_bar "Tiến trình 1" 20
-        pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
-        pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+        if [ "$ENV_OS" == "termux" ]; then
+            pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+            pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+        elif [ "$ENV_OS" == "linux" ]; then
+            $SUDO_CMD apt-get update -y > /dev/null 2>&1
+            $SUDO_CMD apt-get install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
+        elif [ "$ENV_OS" == "macos" ]; then
+            brew update > /dev/null 2>&1
+            brew install tor privoxy jq openssl > /dev/null 2>&1
+        fi
         hash -r 
         render_bar "Tiến trình 1" 100
     else
@@ -299,10 +344,12 @@ run_tor() {
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
             percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
-            render_bar "Tiến trình 2" "$percent"
-            if [ "$percent" -eq 100 ]; then
-                is_ready=true
-                break
+            if [ -n "$percent" ]; then
+                render_bar "Tiến trình 2" "$percent"
+                if [ "$percent" -eq 100 ]; then
+                    is_ready=true
+                    break
+                fi
             fi
         fi
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
@@ -377,9 +424,9 @@ run_tor() {
             elif [[ "$key" == "x" || "$key" == "X" ]]; then
                 count=1 # Ép count về 1 để nhảy về 0 và xoay ngay
             elif [[ "$key" == "y" || "$key" == "Y" ]]; then
-                am start -a android.intent.action.VIEW -d "https://youtube.com/@kandakashiko?si=C2wG-ljOf9nLQbFi" > /dev/null 2>&1
+                open_url "https://youtube.com/@kandakashiko?si=C2wG-ljOf9nLQbFi"
             elif [[ "$key" == "d" || "$key" == "D" ]]; then
-                am start -a android.intent.action.VIEW -d "https://discord.gg/7ERYA9ArWH" > /dev/null 2>&1
+                open_url "https://discord.gg/7ERYA9ArWH"
             elif [[ "$key" == "e" || "$key" == "E" ]]; then
                 cleanup
                 clear
@@ -437,6 +484,7 @@ run_tor() {
 }
 
 main() {
+    detect_environment
     init_alias
     init_colors
     init_language
