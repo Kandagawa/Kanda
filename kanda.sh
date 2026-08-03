@@ -4,6 +4,10 @@
 detect_environment() {
     if [ -d "/data/data/com.termux" ]; then
         ENV_OS="termux"
+    elif [ -n "$MSYSTEM" ]; then
+        ENV_OS="msys2"
+        PREFIX="$HOME/.kanda"
+        SUDO_CMD=""
     elif command -v apt-get &>/dev/null; then
         ENV_OS="linux"
         PREFIX="$HOME/.kanda"
@@ -25,11 +29,19 @@ open_url() {
     local url=$1
     if [ "$ENV_OS" == "termux" ]; then
         am start -a android.intent.action.VIEW -d "$url" > /dev/null 2>&1
+    elif [ "$ENV_OS" == "msys2" ]; then
+        cmd.exe /c start "" "$url" > /dev/null 2>&1
     elif [ "$ENV_OS" == "macos" ]; then
         open "$url" > /dev/null 2>&1
     else
         xdg-open "$url" > /dev/null 2>&1
     fi
+}
+
+# Hàm lấy giá trị từ JSON (Thay thế jq)
+get_json_val() {
+    local key="$1"
+    grep -oE "\"$key\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" | sed -E "s/\"$key\"[[:space:]]*:[[:space:]]*\"//; s/\"$//"
 }
 
 init_alias() {
@@ -198,7 +210,7 @@ cleanup() {
     rm -f "$PREFIX/tmp/kanda_newip.tmp" > /dev/null 2>&1
 }
 
-# Hàm lấy IP, Vị trí (Nhanh)
+# Hàm lấy IP, Vị trí (Dùng grep thay cho jq)
 get_ip_info() {
     local json ip country code
     json=$(curl -s --max-time 10 --proxy 127.0.0.1:8118 "http://ip-api.com/json")
@@ -207,14 +219,14 @@ get_ip_info() {
         echo "Lỗi kết nối|Không xác định"
         return
     fi
-    local status=$(echo "$json" | jq -r '.status' 2>/dev/null)
+    local status=$(echo "$json" | get_json_val "status")
     if [ "$status" != "success" ]; then
         echo "Lỗi kết nối|Không xác định"
         return
     fi
-    ip=$(echo "$json" | jq -r '.query')
-    country=$(echo "$json" | jq -r '.country')
-    code=$(echo "$json" | jq -r '.countryCode')
+    ip=$(echo "$json" | get_json_val "query")
+    country=$(echo "$json" | get_json_val "country")
+    code=$(echo "$json" | get_json_val "countryCode")
     echo "${ip}|${country} (${code})"
 }
 
@@ -248,11 +260,10 @@ select_country() {
         elif [[ "$clean_input" =~ ^(af|ax|al|dz|as|ad|ao|ai|aq|ag|ar|am|aw|au|at|az|bs|bh|bd|bb|by|be|bz|bj|bm|bt|bo|bq|ba|bw|bv|br|io|bn|bg|bf|bi|kh|cm|ca|cv|ky|cf|td|cl|cn|cx|cc|co|km|cg|cd|ck|cr|ci|hr|cu|cw|cy|cz|dk|dj|dm|do|ec|eg|sv|gq|er|ee|et|fk|fo|fj|fi|fr|gf|pf|tf|ga|gm|ge|de|gh|gi|gr|gl|gd|gp|gu|gt|gg|gn|gw|gy|ht|hm|va|hn|hk|hu|is|in|id|ir|iq|ie|im|il|it|jm|jp|je|jo|kz|ke|ki|kp|kr|kw|kg|la|lv|lb|ls|lr|ly|li|lt|lu|mo|mk|mg|mw|my|mv|ml|mt|mh|mq|mr|mu|yt|mx|fm|md|mc|mn|me|ms|ma|mz|mm|na|nr|np|nl|nc|nz|ni|ne|ng|nu|nf|mp|no|om|pk|pw|ps|pa|pg|py|pe|ph|pn|pl|pt|pr|qa|re|ro|ru|rw|bl|sh|kn|lc|mf|pm|vc|ws|sm|st|sa|sn|rs|sc|sl|sg|sx|sk|si|sb|so|za|gs|ss|es|lk|sd|sr|sj|sz|se|ch|sy|tw|tj|tz|th|tl|tg|tk|to|tt|tn|tr|tm|tc|tv|ug|ua|ae|gb|us|um|uy|uz|vu|ve|vn|vg|vi|wf|eh|ye|zm|zw)$ ]]; then
             country_code="$clean_input"
             
-            # Kiểm tra số lượng IP của quốc gia vừa nhập
+            # Đếm số IP bằng grep (Thay thế jq)
             printf "      ${GREY}${TXT_CHK_IP} ${YELLOW}${country_code^^}${GREY}...${NC}"
-            country_nodes=$(curl -s "https://onionoo.torproject.org/summary?search=country:$country_code&running=true" | jq '.relays | length // 0' 2>/dev/null)
+            country_nodes=$(curl -s "https://onionoo.torproject.org/summary?search=country:$country_code&running=true" | grep -oE '"fingerprint":[[:space:]]*"[^"]+"' | wc -l)
             
-            # Xóa dòng "Đang kiểm tra..." và in kết quả
             printf "\r\033[K"
             
             if [[ -z "$country_nodes" || "$country_nodes" == "null" ]]; then
@@ -290,17 +301,20 @@ select_rotate_time() {
 install_services() {
     cleanup
     echo -e "\n  ${GREY}${TXT_CHKSYS}${NC}"
-    if ! command -v tor &>/dev/null || ! command -v privoxy &>/dev/null || ! command -v jq &>/dev/null; then
+    if ! command -v tor &>/dev/null || ! command -v privoxy &>/dev/null; then
         render_bar "Tiến trình 1" 20
         if [ "$ENV_OS" == "termux" ]; then
             pkg update -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
-            pkg install tor privoxy curl jq netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+            pkg install tor privoxy curl netcat-openbsd openssl -y -o Dpkg::Options::="--force-confold" > /dev/null 2>&1
+        elif [ "$ENV_OS" == "msys2" ]; then
+            pacman -Syu --noconfirm > /dev/null 2>&1
+            pacman -S --noconfirm tor privoxy curl openssl inetutils > /dev/null 2>&1
         elif [ "$ENV_OS" == "linux" ]; then
             $SUDO_CMD apt-get update -y > /dev/null 2>&1
-            $SUDO_CMD apt-get install tor privoxy curl jq netcat-openbsd openssl -y > /dev/null 2>&1
+            $SUDO_CMD apt-get install tor privoxy curl netcat-openbsd openssl -y > /dev/null 2>&1
         elif [ "$ENV_OS" == "macos" ]; then
             brew update > /dev/null 2>&1
-            brew install tor privoxy jq openssl > /dev/null 2>&1
+            brew install tor privoxy openssl > /dev/null 2>&1
         fi
         hash -r 
         render_bar "Tiến trình 1" 100
@@ -326,7 +340,27 @@ config_tor() {
     TORRC="$PREFIX/etc/tor/torrc"
     echo -e "ControlPort 9051\nCookieAuthentication 0\nDataDirectory $PREFIX/var/lib/tor\nMaxCircuitDirtiness $sec\nCircuitBuildTimeout 15\nLog notice stdout" > "$TORRC"
     if [[ -n "$country_code" ]]; then
-        strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | jq -r '.relays[] | select(.running==true and .advertised_bandwidth > 1048576) | .fingerprint' | tr '\n' ',' | sed 's/,$//')
+        # Lọc node bằng awk (Thay thế jq)
+        strong_nodes=$(curl -s "https://onionoo.torproject.org/details?search=country:$country_code" | \
+        tr '{' '\n' | \
+        awk '
+        {
+            fp=""; run=0; bw=0;
+            if(match($0, /"fingerprint":[[:space:]]*"[^"]+"/)) {
+                fp=substr($0, RSTART, RLENGTH)
+                sub(/"fingerprint":[[:space:]]*"/, "", fp)
+                sub(/"/, "", fp)
+            }
+            if(match($0, /"running":[[:space:]]*true/)) run=1
+            if(match($0, /"advertised_bandwidth":[[:space:]]*[0-9]+/)) {
+                bw=substr($0, RSTART, RLENGTH)
+                gsub(/[^0-9]/, "", bw)
+            }
+            if(run && bw > 1048576 && fp != "") {
+                printf "%s,", fp
+            }
+        }')
+        
         if [[ -n "$strong_nodes" ]]; then
             echo -e "ExitNodes $strong_nodes\nStrictNodes 1" >> "$TORRC"
         else
@@ -343,7 +377,7 @@ run_tor() {
     while read -r line; do
         [[ "$stop_flag" == "true" ]] && break
         if [[ "$line" == *"Bootstrapped"* ]]; then
-            percent=$(echo "$line" | grep -oP "\d+%" | head -1 | tr -d '%')
+            percent=$(echo "$line" | grep -oE "[0-9]+%" | head -1 | tr -d '%')
             if [ -n "$percent" ]; then
                 render_bar "Tiến trình 2" "$percent"
                 if [ "$percent" -eq 100 ]; then
@@ -355,20 +389,17 @@ run_tor() {
     done < <(stdbuf -oL tor -f "$TORRC" 2>/dev/null)
 
     if [ "$is_ready" = true ]; then
-        sleep 2 # Đợi mạch định tuyến ổn định
+        sleep 2
         
-        # Lấy thông tin IP ban đầu
         ip_info=$(get_ip_info)
         ip_addr=$(echo "$ip_info" | cut -d'|' -f1)
         ip_loc=$(echo "$ip_info" | cut -d'|' -f2)
         
-        # Bắt đầu đo tốc độ ngầm ngay lập tức
         test_speed_once
         
         local count=$sec
         local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
         
-        # Vòng lặp hiển thị kết quả và đếm ngược
         while [[ "$stop_flag" == "false" ]]; do
             clear
             echo -e "\n  ${GREEN}${TXT_READY}${NC}"
@@ -378,13 +409,11 @@ run_tor() {
             echo -e "  ${WHITE} ${TXT_CYC} :${NC} ${BLUE}${minute_input} ${TXT_MIN}${NC} ${GREY}(${sec}s)${NC}"
             echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
             
-            # Phần hiển thị thông tin kết nối
             echo -e "\n  ${PURPLE}${TXT_CURR}${NC}"
             echo -e "  ${GREY}───────────────────────────────────────${NC}"
             echo -e "  ${WHITE} ${TXT_IP} :${NC} ${YELLOW}${ip_addr}${NC}"
             echo -e "  ${WHITE} ${TXT_LOC} :${NC} ${CYAN}${ip_loc}${NC}"
             
-            # Logic hiển thị tốc độ mạng với hiệu ứng chờ
             if [ -f "$PREFIX/tmp/kanda_speed.tmp" ]; then
                 ip_speed=$(cat "$PREFIX/tmp/kanda_speed.tmp")
                 local speed_color=$GREEN
@@ -404,25 +433,22 @@ run_tor() {
             fi
             echo -e "  ${GREY}───────────────────────────────────────${NC}"
             
-            # Phần thêm: Đồng hồ đếm ngược
             local mins=$((count / 60))
             local secs_left=$((count % 60))
             printf "\n  ${ORANGE}${TXT_COUNT}${NC} ${WHITE}%02d:%02d${NC}\n" "$mins" "$secs_left"
             
-            # Phần hiển thị nút ấn (Đỏ - Cyan)
             echo -e "\n  ${GREY}» ${RED}${TXT_KEY_R}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_R_DESC}${NC}"
             echo -e "  ${GREY}» ${RED}${TXT_KEY_X}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_X_DESC}${NC}"
             echo -e "  ${GREY}» ${RED}${TXT_KEY_Y}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_Y_DESC}${NC}"
             echo -e "  ${GREY}» ${RED}${TXT_KEY_D}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_D_DESC}${NC}"
             echo -e "  ${GREY}» ${RED}${TXT_KEY_E}${NC} ${GREY}:${NC} ${CYAN}${TXT_KEY_E_DESC}${NC}\n"
             
-            # Đọc phím trong 1 giây thay cho sleep 1
             read -t 1 -n 1 -s key </dev/tty
             if [[ "$key" == "r" || "$key" == "R" ]]; then
                 stop_flag=true
                 break
             elif [[ "$key" == "x" || "$key" == "X" ]]; then
-                count=1 # Ép count về 1 để nhảy về 0 và xoay ngay
+                count=1
             elif [[ "$key" == "y" || "$key" == "Y" ]]; then
                 open_url "https://youtube.com/@kandakashiko?si=C2wG-ljOf9nLQbFi"
             elif [[ "$key" == "d" || "$key" == "D" ]]; then
@@ -436,13 +462,11 @@ run_tor() {
             
             count=$((count - 1))
             
-            # Khi hết giờ, xoay IP mới và gộp load tất cả thông tin
             if [ $count -le 0 ]; then
                 clear
                 echo -e "\n  ${CYAN}${TXT_ROT}${NC}"
                 echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
                 
-                # Chạy ngầm quá trình xoay, lấy IP và đo tốc độ gộp vào 1
                 (
                     ( echo -e "AUTHENTICATE \"\"\nSIGNAL NEWNYM\nQUIT" | nc 127.0.0.1 9051 ) > /dev/null 2>&1
                     sleep 3
@@ -461,7 +485,6 @@ run_tor() {
                 ) &
                 local load_pid=$!
                 
-                # Vòng lặp chờ tải xong
                 local load_i=0
                 while kill -0 $load_pid 2>/dev/null; do
                     printf "\r  ${ORANGE}%s${NC} ${GREY}${TXT_WAIT}${NC}" "${spin:$((load_i % 10)):1}"
@@ -470,7 +493,6 @@ run_tor() {
                 done
                 printf "\r\033[K"
                 
-                # Cập nhật IP mới
                 if [ -f "$PREFIX/tmp/kanda_newip.tmp" ]; then
                     ip_addr=$(cat "$PREFIX/tmp/kanda_newip.tmp" | cut -d'|' -f1)
                     ip_loc=$(cat "$PREFIX/tmp/kanda_newip.tmp" | cut -d'|' -f2)
@@ -506,8 +528,8 @@ main() {
         echo -e "  ${PURPLE}${TXT_CFG_TITLE}${NC}"
         echo -e "  ${GREY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         
-        # Fix lỗi buộc phải lấy total_nodes trước khi in ra
-        total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | jq '.relays | length')
+        # Đếm tổng số IP bằng grep (Thay thế jq)
+        total_nodes=$(curl -s "https://onionoo.torproject.org/summary?running=true" | grep -oE '"fingerprint":[[:space:]]*"[^"]+"' | wc -l)
         printf "\n  ${PURPLE}◈${NC} ${GREEN}${TXT_TOTAL}${NC} ${YELLOW}${total_nodes}${NC} ${GREY}IPs${NC}\n"
         
         select_country
